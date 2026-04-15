@@ -1,0 +1,17 @@
+{
+  "name": "WattWise AI",
+  "short_name": "WattWise",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "description": "A smart energy assistant with appliance health monitoring, bill prediction, and a virtual energy pet.",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

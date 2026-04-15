@@ -3,15 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0d1117" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="WattWise AI" />
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml" />
   <title>{{ title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
-<body>
+<body data-alerts='{{ alerts | tojson }}' data-pet-alert="{{ pet_alert }}">
 
   <header>
     <div class="label">WattWise AI</div>
     <h1>Energy <span>Usage</span></h1>
     <div class="date-stamp" id="date-stamp">Loading date...</div>
+    <div class="install-row">
+      <button id="install-btn" class="ghost-btn" hidden>Install App</button>
+    </div>
   </header>
 
   <div class="cards">
@@ -19,20 +28,20 @@
       <div class="card-icon">🔋</div>
       <div class="card-label">Total Today</div>
       <div class="card-value">{{ total_usage }}<span class="card-unit">kWh</span></div>
-      <div class="card-sub">across 24 hours</div>
+      <div class="card-sub">Future usage tomorrow: {{ predictions.tomorrow_usage }} kWh</div>
     </div>
 
     <div class="card peak">
       <div class="card-icon">⚡</div>
-      <div class="card-label">Peak Usage</div>
-      <div class="card-value">{{ peak_usage }}<span class="card-unit">kWh</span></div>
-      <div class="card-sub">at {{ peak_hour }}</div>
+      <div class="card-label">Peak Window</div>
+      <div class="card-value">{{ peak_window }}</div>
+      <div class="card-sub">Peak hour at {{ peak_hour }}</div>
     </div>
 
     <div class="card tip">
       <div class="card-icon">💬</div>
-      <div class="card-label">Today's Tip</div>
-      <div class="card-value">{{ suggestion }}</div>
+      <div class="card-label">WattWise Story</div>
+      <div class="card-value">{{ home_story }}</div>
     </div>
   </div>
 
@@ -160,6 +169,11 @@
       <div class="pet-info">
         <div class="pet-status-badge status-{{ pet_status }}">{{ pet_status | upper }}</div>
         <div class="pet-message">{{ pet_message }}</div>
+        <div class="pet-subtext">{{ pet_alert }}</div>
+        <div class="pet-reward-row">
+          <span class="pet-chip">{{ streak }} day streak</span>
+          <span class="pet-chip">{{ pet_badge }}</span>
+        </div>
         <div class="pet-meter">
           <div class="pet-meter-label">Energy Level</div>
           <div class="pet-meter-bar">
@@ -175,21 +189,21 @@
       <div class="card-icon">💰</div>
       <div class="card-label">Daily Cost</div>
       <div class="card-value">Rs. {{ daily_cost }}</div>
-      <div class="card-sub">Rate: Rs. {{ unit_cost }} per unit</div>
+      <div class="card-sub">Forecast bill: Rs. {{ monthly_bill }}</div>
     </div>
 
     <div class="card score">
       <div class="card-icon">🏆</div>
       <div class="card-label">Energy Score</div>
       <div class="card-value">{{ score }}<span class="card-unit">/100</span></div>
-      <div class="card-sub">lower usage earns higher score</div>
+      <div class="card-sub">Eco score {{ eco_score }}/100</div>
     </div>
 
     <div class="card prediction">
       <div class="card-icon">🔮</div>
       <div class="card-label">Bill Forecast</div>
       <div class="card-value prediction-copy">{{ prediction_message }}</div>
-      <div class="card-sub">Projected monthly bill: Rs. {{ monthly_bill }}</div>
+      <div class="card-sub">Yesterday {{ predictions.yesterday_usage }} kWh • Weekly avg {{ predictions.weekly_average }} kWh</div>
     </div>
   </div>
 
@@ -214,11 +228,7 @@
           {% set height_pct = (usage[i] / 2.0 * 100) | round(1) %}
           {% set is_peak = (usage[i] == peak_usage) %}
           <div class="bar-wrap">
-            <div
-              class="bar {% if is_peak %}is-peak{% endif %}"
-              style="height: {{ height_pct }}px; animation-delay: {{ (i * 0.025) | round(3) }}s;"
-              title="{{ hours[i] }}: {{ usage[i] }} kWh"
-            ></div>
+            <div class="bar {% if is_peak %}is-peak{% endif %}" style="height: {{ height_pct }}px; animation-delay: {{ (i * 0.025) | round(3) }}s;" title="{{ hours[i] }}: {{ usage[i] }} kWh"></div>
             <span class="bar-label">{{ hours[i] }}</span>
           </div>
         {% endfor %}
@@ -231,18 +241,54 @@
     </div>
   </div>
 
+  <div class="cards tertiary-cards">
+    <div class="card insight">
+      <div class="card-icon">📈</div>
+      <div class="card-label">Usage Behavior</div>
+      <div class="card-value">{{ usage_change.direction | capitalize }} by {{ usage_change.delta }} kWh</div>
+      <div class="card-sub">{{ usage_change.reason }}</div>
+    </div>
+
+    <div class="card insight">
+      <div class="card-icon">🌱</div>
+      <div class="card-label">Peak Advice</div>
+      <div class="card-value">Highest usage at {{ peak_window }}</div>
+      <div class="card-sub">Shift usage to morning to save cost</div>
+    </div>
+
+    <div class="card insight">
+      <div class="card-icon">🤖</div>
+      <div class="card-label">Personal AI Tips</div>
+      <div class="card-list">
+        {% for tip in personalized_tips %}
+        <div class="mini-line">{{ tip }}</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
   <section class="chart-section stacked-section">
     <div class="chart-title">Appliance Intelligence</div>
     <form method="post" class="appliance-form">
+      <div class="form-action-row">
+        <label class="toggle-row">
+          <input type="checkbox" name="saving_mode" value="on" {% if saving_mode %}checked{% endif %} />
+          <span>Enable Saving Mode</span>
+        </label>
+        <button type="submit" class="action-btn">Update Appliance Simulation</button>
+      </div>
+
       {% for appliance in appliance_rows %}
       <div class="appliance-card {% if appliance.faulty %}faulty{% endif %}">
         <div class="appliance-top">
           <div>
             <div class="card-label">{{ appliance.name }}</div>
-            <div class="appliance-metrics">{{ appliance.energy_kwh }} kWh • Rs. {{ appliance.cost }}</div>
+            <div class="appliance-metrics">{{ appliance.energy_kwh }} kWh • Rs. {{ appliance.cost }} • {{ appliance.share }}% share</div>
           </div>
           {% if appliance.faulty %}
           <div class="pet-status-badge status-sick">FAULT</div>
+          {% else %}
+          <div class="pet-status-badge status-happy">HEALTHY</div>
           {% endif %}
         </div>
 
@@ -255,36 +301,127 @@
             Usage Hours
             <input type="number" step="0.5" min="0" max="24" name="{{ appliance.name.lower() }}_hours" value="{{ appliance.hours }}" />
           </label>
+          <label>
+            Age (Years)
+            <input type="number" step="1" min="0" max="20" name="{{ appliance.name.lower() }}_age" value="{{ appliance.age }}" />
+          </label>
+          <label>
+            Condition
+            <select name="{{ appliance.name.lower() }}_condition">
+              {% for option in ["good", "slow", "overheat", "noise", "standby"] %}
+              <option value="{{ option }}" {% if appliance.condition == option %}selected{% endif %}>{{ option | capitalize }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Maintained Recently
+            <select name="{{ appliance.name.lower() }}_maintenance">
+              <option value="yes" {% if appliance.maintenance == "yes" %}selected{% endif %}>Yes</option>
+              <option value="no" {% if appliance.maintenance == "no" %}selected{% endif %}>No</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="appliance-footer">
+          <div class="mini-line">Safe limit: {{ appliance.limit }} kWh/day</div>
+          <div class="mini-line">Health insight: {{ appliance.reason }}</div>
+          {% if appliance.phantom_load %}
+          <div class="mini-line warn-line">{{ appliance.phantom_load }}</div>
+          {% endif %}
+          {% if appliance.faulty %}
+          <a class="shop-link" href="{{ appliance.shopping_link }}" target="_blank" rel="noreferrer">Find efficient {{ appliance.name.lower() }} replacement</a>
+          {% endif %}
         </div>
       </div>
       {% endfor %}
-
-      <button type="submit" class="action-btn">Update Appliance Simulation</button>
     </form>
+  </section>
+
+  <section class="chart-section stacked-section">
+    <div class="chart-title">Weekly Report</div>
+    <div class="chart-meta">
+      <span>You used {{ predictions.weekly_average }} kWh on average this week</span>
+      <span>Tomorrow predicted usage: {{ predictions.tomorrow_usage }} kWh</span>
+    </div>
+    <div class="weekly-chart">
+      {% for day in weekly_history %}
+      <div class="week-bar-wrap">
+        <div class="week-bar" style="height: {{ ((day.usage / 30) * 100) | round(1) }}px; animation-delay: {{ (loop.index0 * 0.05) | round(2) }}s;"></div>
+        <span class="week-label">{{ day.label }}</span>
+        <span class="week-value">{{ day.usage }}</span>
+      </div>
+      {% endfor %}
+    </div>
   </section>
 
   <section class="chart-section stacked-section">
     <div class="chart-title">Alerts & Suggestions</div>
     <div class="alert-list">
       {% for alert in alerts %}
-      <div class="alert-item {% if 'stable' in alert.lower() %}alert-ok{% else %}alert-warn{% endif %}">
-        {{ alert }}
-      </div>
+      <div class="alert-item {% if 'stable' in alert.lower() %}alert-ok{% else %}alert-warn{% endif %}">{{ alert }}</div>
+      {% endfor %}
+      {% for reason in usage_reasons %}
+      <div class="alert-item alert-tip">{{ reason }}</div>
       {% endfor %}
       {% for recommendation in recommendations %}
-      <div class="alert-item alert-tip">{{ recommendation }}</div>
+      <div class="alert-item alert-tip">
+        <div>{{ recommendation.message }}</div>
+        <div class="mini-line">{{ recommendation.reason }}</div>
+        <a class="shop-link" href="{{ recommendation.link }}" target="_blank" rel="noreferrer">Open shopping suggestion</a>
+      </div>
       {% endfor %}
     </div>
   </section>
 
   <footer>
-    Data refreshes on every page load · Flask + Jinja2
+    Data refreshes on every page load · Flask + Jinja2 · PWA ready for mobile install
   </footer>
 
   <script>
     const d = new Date();
     document.getElementById('date-stamp').textContent =
       d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js') }}");
+    }
+
+    let deferredPrompt = null;
+    const installBtn = document.getElementById('install-btn');
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      deferredPrompt = event;
+      installBtn.hidden = false;
+    });
+
+    installBtn?.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.hidden = true;
+    });
+
+    async function notifyEnergyAlerts() {
+      if (!('Notification' in window)) return;
+      const alerts = JSON.parse(document.body.dataset.alerts || '[]');
+      const petAlert = document.body.dataset.petAlert;
+      if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+      if (Notification.permission === 'granted' && alerts.length) {
+        const [firstAlert] = alerts;
+        navigator.serviceWorker?.ready.then((registration) => {
+          registration.showNotification('WattWise AI Alert', {
+            body: firstAlert.includes('stable') ? petAlert : firstAlert,
+            icon: "{{ url_for('static', filename='icon.svg') }}",
+            badge: "{{ url_for('static', filename='icon.svg') }}"
+          });
+        });
+      }
+    }
+
+    notifyEnergyAlerts();
   </script>
 
 </body>

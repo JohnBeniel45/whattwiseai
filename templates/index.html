@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+  <header>
+    <div class="label">WattWise AI</div>
+    <h1>Energy <span>Usage</span></h1>
+    <div class="date-stamp" id="date-stamp">Loading date...</div>
+  </header>
+
+  <div class="cards">
+    <div class="card total">
+      <div class="card-icon">🔋</div>
+      <div class="card-label">Total Today</div>
+      <div class="card-value">{{ total_usage }}<span class="card-unit">kWh</span></div>
+      <div class="card-sub">across 24 hours</div>
+    </div>
+
+    <div class="card peak">
+      <div class="card-icon">⚡</div>
+      <div class="card-label">Peak Usage</div>
+      <div class="card-value">{{ peak_usage }}<span class="card-unit">kWh</span></div>
+      <div class="card-sub">at {{ peak_hour }}</div>
+    </div>
+
+    <div class="card tip">
+      <div class="card-icon">💬</div>
+      <div class="card-label">Today's Tip</div>
+      <div class="card-value">{{ suggestion }}</div>
+    </div>
+  </div>
+
+  <div class="pet-card pet-{{ pet_status }}" style="max-width:860px; margin: 0 auto 32px;">
+    <div class="pet-header">🐾 Energy Pet</div>
+    <div class="pet-body">
+      <div class="pet-cat">
+        {% if pet_status == "happy" %}
+        <div class="cat-svg-wrap cat-happy-wrap">
+          <svg class="cat-svg" viewBox="0 0 160 180" xmlns="http://www.w3.org/2000/svg">
+            <g class="sparkles">
+              <text x="10" y="40" font-size="16" class="sparkle s1">✦</text>
+              <text x="130" y="30" font-size="12" class="sparkle s2">✦</text>
+              <text x="120" y="70" font-size="10" class="sparkle s3">✧</text>
+              <text x="20" y="75" font-size="10" class="sparkle s4">✧</text>
+            </g>
+            <path class="cat-tail" d="M105 145 Q140 130 135 105 Q130 90 115 100" stroke="#c97b2a" stroke-width="8" fill="none" stroke-linecap="round"/>
+            <ellipse cx="80" cy="138" rx="42" ry="36" fill="#e8962e"/>
+            <ellipse cx="80" cy="145" rx="24" ry="22" fill="#f5c97a"/>
+            <ellipse cx="80" cy="82" rx="38" ry="34" fill="#e8962e"/>
+            <polygon points="48,58 38,28 62,50" fill="#e8962e"/>
+            <polygon points="112,58 122,28 98,50" fill="#e8962e"/>
+            <polygon points="51,55 44,35 62,50" fill="#f0a0a0"/>
+            <polygon points="109,55 116,35 98,50" fill="#f0a0a0"/>
+            <path d="M70 60 Q80 55 90 60" stroke="#c97b2a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M65 68 Q80 62 95 68" stroke="#c97b2a" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <ellipse cx="65" cy="80" rx="10" ry="11" fill="#1a2a0a"/>
+            <ellipse cx="95" cy="80" rx="10" ry="11" fill="#1a2a0a"/>
+            <ellipse cx="65" cy="80" rx="7" ry="8" fill="#3dba4e"/>
+            <ellipse cx="95" cy="80" rx="7" ry="8" fill="#3dba4e"/>
+            <ellipse cx="65" cy="79" rx="4" ry="5" fill="#111"/>
+            <ellipse cx="95" cy="79" rx="4" ry="5" fill="#111"/>
+            <circle cx="67" cy="77" r="1.5" fill="white"/>
+            <circle cx="97" cy="77" r="1.5" fill="white"/>
+            <ellipse cx="80" cy="92" rx="4" ry="3" fill="#e05080"/>
+            <path d="M75 96 Q80 101 85 96" stroke="#c04060" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            <ellipse cx="80" cy="100" rx="4" ry="3" fill="#e06080"/>
+            <line x1="30" y1="88" x2="58" y2="91" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
+            <line x1="30" y1="94" x2="58" y2="94" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
+            <line x1="102" y1="91" x2="130" y2="88" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
+            <line x1="102" y1="94" x2="130" y2="94" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
+            <path d="M48 108 Q80 118 112 108" stroke="#4a90d9" stroke-width="6" fill="none" stroke-linecap="round"/>
+            <circle cx="80" cy="118" r="7" fill="#f5d020" stroke="#c9a800" stroke-width="1.5"/>
+            <ellipse cx="58" cy="170" rx="14" ry="8" fill="#e8962e"/>
+            <ellipse cx="102" cy="170" rx="14" ry="8" fill="#e8962e"/>
+          </svg>
+        </div>
+        {% elif pet_status == "tired" %}
+        <div class="cat-svg-wrap cat-tired-wrap">
+          <svg class="cat-svg" viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg">
+            <text x="100" y="18" font-size="13" class="tired-spark ts1" fill="#e8962e">!</text>
+            <text x="115" y="12" font-size="13" class="tired-spark ts2" fill="#e8962e">!</text>
+            <ellipse cx="115" cy="95" rx="58" ry="24" fill="#e8962e"/>
+            <ellipse cx="118" cy="100" rx="36" ry="16" fill="#f5c97a"/>
+            <path d="M58 90 Q30 95 28 108 Q26 118 40 115" stroke="#c97b2a" stroke-width="7" fill="none" stroke-linecap="round"/>
+            <ellipse cx="62" cy="82" rx="32" ry="28" fill="#e8962e"/>
+            <polygon points="38,62 28,38 52,60" fill="#e8962e"/>
+            <polygon points="86,62 90,38 72,60" fill="#e8962e"/>
+            <polygon points="41,60 33,42 52,58" fill="#f0a0a0"/>
+            <polygon points="84,60 87,42 72,58" fill="#f0a0a0"/>
+            <path d="M53 65 Q62 61 72 65" stroke="#c97b2a" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <ellipse cx="50" cy="78" rx="9" ry="7" fill="#1a2a0a"/>
+            <ellipse cx="74" cy="78" rx="9" ry="7" fill="#1a2a0a"/>
+            <ellipse cx="50" cy="78" rx="6" ry="5" fill="#3dba4e"/>
+            <ellipse cx="74" cy="78" rx="6" ry="5" fill="#3dba4e"/>
+            <ellipse cx="50" cy="78" rx="3.5" ry="3.5" fill="#111"/>
+            <ellipse cx="74" cy="78" rx="3.5" ry="3.5" fill="#111"/>
+            <path d="M41 74 Q50 70 59 74" stroke="#c97b2a" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M65 74 Q74 70 83 74" stroke="#c97b2a" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <ellipse cx="62" cy="88" rx="3.5" ry="2.5" fill="#e05080"/>
+            <path d="M58 93 Q62 95 66 93" stroke="#c04060" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            <line x1="20" y1="84" x2="44" y2="86" stroke="#c97b2a" stroke-width="1.2" opacity="0.6"/>
+            <line x1="20" y1="90" x2="44" y2="90" stroke="#c97b2a" stroke-width="1.2" opacity="0.6"/>
+            <line x1="80" y1="86" x2="104" y2="84" stroke="#c97b2a" stroke-width="1.2" opacity="0.6"/>
+            <line x1="80" y1="90" x2="104" y2="90" stroke="#c97b2a" stroke-width="1.2" opacity="0.6"/>
+            <ellipse cx="62" cy="112" rx="18" ry="9" fill="#e8962e"/>
+            <ellipse cx="92" cy="115" rx="16" ry="8" fill="#e8962e"/>
+            <rect x="148" y="70" width="36" height="20" rx="3" fill="none" stroke="#aaa" stroke-width="2"/>
+            <rect x="184" y="76" width="4" height="8" rx="1" fill="#aaa"/>
+            <rect x="150" y="72" width="10" height="16" rx="2" fill="#e05c2a"/>
+          </svg>
+        </div>
+        {% else %}
+        <div class="cat-svg-wrap cat-sick-wrap">
+          <svg class="cat-svg" viewBox="0 0 160 190" xmlns="http://www.w3.org/2000/svg">
+            <g class="lightning-group">
+              <polygon class="lightning" points="82,5 72,30 82,28 70,55 88,22 78,24" fill="#f5a623" stroke="#e8962e" stroke-width="1"/>
+              <text x="95" y="20" font-size="11" class="sparkle s1" fill="#f5d020">✦</text>
+              <text x="55" y="25" font-size="9" class="sparkle s2" fill="#f5d020">✧</text>
+              <text x="105" y="38" font-size="9" class="sparkle s3" fill="#f5d020">✦</text>
+            </g>
+            <path class="cat-tail" d="M108 150 Q142 138 138 112 Q134 96 118 106" stroke="#c97b2a" stroke-width="8" fill="none" stroke-linecap="round"/>
+            <ellipse cx="80" cy="145" rx="42" ry="36" fill="#e8962e"/>
+            <ellipse cx="80" cy="152" rx="24" ry="22" fill="#f5c97a"/>
+            <ellipse cx="80" cy="90" rx="38" ry="34" fill="#e8962e"/>
+            <polygon points="48,66 35,32 64,58" fill="#e8962e"/>
+            <polygon points="112,66 125,32 96,58" fill="#e8962e"/>
+            <polygon points="51,63 40,38 62,56" fill="#f0a0a0"/>
+            <polygon points="109,63 120,38 98,56" fill="#f0a0a0"/>
+            <path d="M70 67 Q80 62 90 67" stroke="#c97b2a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M65 75 Q80 69 95 75" stroke="#c97b2a" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <ellipse cx="65" cy="88" rx="11" ry="12" fill="#1a2a0a"/>
+            <ellipse cx="95" cy="88" rx="11" ry="12" fill="#1a2a0a"/>
+            <ellipse cx="65" cy="88" rx="8" ry="9" fill="#3dba4e"/>
+            <ellipse cx="95" cy="88" rx="8" ry="9" fill="#3dba4e"/>
+            <ellipse cx="65" cy="88" rx="5" ry="6" fill="#111"/>
+            <ellipse cx="95" cy="88" rx="5" ry="6" fill="#111"/>
+            <circle cx="67" cy="85" r="2" fill="white"/>
+            <circle cx="97" cy="85" r="2" fill="white"/>
+            <ellipse cx="80" cy="100" rx="4" ry="3" fill="#e05080"/>
+            <path d="M73 105 Q80 112 87 105" stroke="#c04060" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            <ellipse cx="80" cy="108" rx="5" ry="4" fill="#c04060" opacity="0.5"/>
+            <line x1="28" y1="96" x2="56" y2="98" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
+            <line x1="28" y1="102" x2="56" y2="102" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
+            <line x1="104" y1="98" x2="132" y2="96" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
+            <line x1="104" y1="102" x2="132" y2="102" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
+            <path d="M48 116 Q80 126 112 116" stroke="#4a90d9" stroke-width="6" fill="none" stroke-linecap="round"/>
+            <circle cx="80" cy="126" r="7" fill="#f5d020" stroke="#c9a800" stroke-width="1.5"/>
+            <ellipse cx="58" cy="177" rx="14" ry="8" fill="#e8962e"/>
+            <ellipse cx="102" cy="177" rx="14" ry="8" fill="#e8962e"/>
+          </svg>
+        </div>
+        {% endif %}
+      </div>
+      <div class="pet-info">
+        <div class="pet-status-badge status-{{ pet_status }}">{{ pet_status | upper }}</div>
+        <div class="pet-message">{{ pet_message }}</div>
+        <div class="pet-meter">
+          <div class="pet-meter-label">Energy Level</div>
+          <div class="pet-meter-bar">
+            <div class="pet-meter-fill status-fill-{{ pet_status }}" style="width: {{ pet_meter }}%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cards secondary-cards">
+    <div class="card bill">
+      <div class="card-icon">💰</div>
+      <div class="card-label">Daily Cost</div>
+      <div class="card-value">Rs. {{ daily_cost }}</div>
+      <div class="card-sub">Rate: Rs. {{ unit_cost }} per unit</div>
+    </div>
+
+    <div class="card score">
+      <div class="card-icon">🏆</div>
+      <div class="card-label">Energy Score</div>
+      <div class="card-value">{{ score }}<span class="card-unit">/100</span></div>
+      <div class="card-sub">lower usage earns higher score</div>
+    </div>
+
+    <div class="card prediction">
+      <div class="card-icon">🔮</div>
+      <div class="card-label">Bill Forecast</div>
+      <div class="card-value prediction-copy">{{ prediction_message }}</div>
+      <div class="card-sub">Projected monthly bill: Rs. {{ monthly_bill }}</div>
+    </div>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-title">Hourly Breakdown (kWh)</div>
+    <div class="chart-meta">
+      <span>Average hourly usage: {{ average_usage }} kWh</span>
+      <span>Peak highlighted at {{ peak_hour }}</span>
+    </div>
+
+    <div class="chart-inner">
+      <div class="y-labels">
+        <span>2.0</span>
+        <span>1.5</span>
+        <span>1.0</span>
+        <span>0.5</span>
+        <span>0.0</span>
+      </div>
+
+      <div class="bar-chart" id="bar-chart">
+        {% for i in range(hours | length) %}
+          {% set height_pct = (usage[i] / 2.0 * 100) | round(1) %}
+          {% set is_peak = (usage[i] == peak_usage) %}
+          <div class="bar-wrap">
+            <div
+              class="bar {% if is_peak %}is-peak{% endif %}"
+              style="height: {{ height_pct }}px; animation-delay: {{ (i * 0.025) | round(3) }}s;"
+              title="{{ hours[i] }}: {{ usage[i] }} kWh"
+            ></div>
+            <span class="bar-label">{{ hours[i] }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><span class="legend-dot normal"></span>Normal</span>
+      <span><span class="legend-dot peak"></span>Peak Hour</span>
+    </div>
+  </div>
+
+  <section class="chart-section stacked-section">
+    <div class="chart-title">Appliance Intelligence</div>
+    <form method="post" class="appliance-form">
+      {% for appliance in appliance_rows %}
+      <div class="appliance-card {% if appliance.faulty %}faulty{% endif %}">
+        <div class="appliance-top">
+          <div>
+            <div class="card-label">{{ appliance.name }}</div>
+            <div class="appliance-metrics">{{ appliance.energy_kwh }} kWh • Rs. {{ appliance.cost }}</div>
+          </div>
+          {% if appliance.faulty %}
+          <div class="pet-status-badge status-sick">FAULT</div>
+          {% endif %}
+        </div>
+
+        <div class="appliance-grid">
+          <label>
+            Power (W)
+            <input type="number" step="1" min="1" name="{{ appliance.name.lower() }}_power" value="{{ appliance.power }}" />
+          </label>
+          <label>
+            Usage Hours
+            <input type="number" step="0.5" min="0" max="24" name="{{ appliance.name.lower() }}_hours" value="{{ appliance.hours }}" />
+          </label>
+        </div>
+      </div>
+      {% endfor %}
+
+      <button type="submit" class="action-btn">Update Appliance Simulation</button>
+    </form>
+  </section>
+
+  <section class="chart-section stacked-section">
+    <div class="chart-title">Alerts & Suggestions</div>
+    <div class="alert-list">
+      {% for alert in alerts %}
+      <div class="alert-item {% if 'stable' in alert.lower() %}alert-ok{% else %}alert-warn{% endif %}">
+        {{ alert }}
+      </div>
+      {% endfor %}
+      {% for recommendation in recommendations %}
+      <div class="alert-item alert-tip">{{ recommendation }}</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <footer>
+    Data refreshes on every page load · Flask + Jinja2
+  </footer>
+
+  <script>
+    const d = new Date();
+    document.getElementById('date-stamp').textContent =
+      d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  </script>
+
+</body>
+</html>

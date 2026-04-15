@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request
-import random
+from flask import Flask, render_template, request, send_from_directory
+from pathlib import Path
+import csv
 
 app = Flask(__name__)
 
 UNIT_COST = 6
+DATASET_PATH = Path("data/wattwise_synthetic_2026.csv")
 OVERALL_LIMIT = 24
 APPLIANCE_LIMITS = {"AC": 9.0, "Fan": 1.6, "Iron": 2.2, "TV": 1.1}
 SHOPPING_LINKS = {
@@ -21,14 +23,16 @@ DEFAULT_APPLIANCES = {
 EXPECTED_HOURS = {"AC": 8, "Fan": 14, "Iron": 1.5, "TV": 6}
 
 
-def format_hour(hour):
-    if hour == 0:
-        return "12 AM"
-    if hour < 12:
-        return f"{hour} AM"
-    if hour == 12:
-        return "12 PM"
-    return f"{hour - 12} PM"
+def load_dataset():
+    if not DATASET_PATH.exists():
+        return [], {}
+    with DATASET_PATH.open("r", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        rows = list(reader)
+    return rows, {row["date"]: row for row in rows}
+
+
+DATASET_ROWS, DATASET_ROWS_BY_DATE = load_dataset()
 
 
 def parse_float(value, fallback, minimum=0, maximum=None):
@@ -42,9 +46,65 @@ def parse_float(value, fallback, minimum=0, maximum=None):
     return round(parsed, 1)
 
 
-def build_appliance_state(form_data):
+def parse_int(value, fallback=0):
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return fallback
+
+
+def format_hour(hour):
+    if hour == 0:
+        return "12 AM"
+    if hour < 12:
+        return f"{hour} AM"
+    if hour == 12:
+        return "12 PM"
+    return f"{hour - 12} PM"
+
+
+def get_dataset_summary():
+    if not DATASET_ROWS:
+        return {"available": False}
+    return {
+        "available": True,
+        "rows": len(DATASET_ROWS),
+        "features": len(DATASET_ROWS[0].keys()),
+        "start": DATASET_ROWS[0]["date"],
+        "end": DATASET_ROWS[-1]["date"],
+        "path": str(DATASET_PATH),
+    }
+
+
+def get_selected_row(selected_date=None):
+    if not DATASET_ROWS:
+        return None, []
+    dates = [row["date"] for row in DATASET_ROWS]
+    if selected_date and selected_date in DATASET_ROWS_BY_DATE:
+        return DATASET_ROWS_BY_DATE[selected_date], dates
+    return DATASET_ROWS[-1], dates
+
+
+def build_dataset_defaults(dataset_row):
+    defaults = {}
+    for name, base in DEFAULT_APPLIANCES.items():
+        slug = name.lower()
+        if dataset_row:
+            defaults[name] = {
+                "power": parse_float(dataset_row.get(f"{slug}_power_w"), base["power"], minimum=1),
+                "hours": parse_float(dataset_row.get(f"{slug}_hours"), base["hours"], minimum=0, maximum=24),
+                "age": parse_float(dataset_row.get(f"{slug}_age_years"), base["age"], minimum=0, maximum=20),
+                "condition": dataset_row.get(f"{slug}_condition", base["condition"]),
+                "maintenance": dataset_row.get(f"{slug}_maintenance", base["maintenance"]),
+            }
+        else:
+            defaults[name] = dict(base)
+    return defaults
+
+
+def build_appliance_state(form_data, defaults_map):
     appliances = {}
-    for name, defaults in DEFAULT_APPLIANCES.items():
+    for name, defaults in defaults_map.items():
         slug = name.lower()
         appliances[name] = {
             "power": parse_float(form_data.get(f"{slug}_power"), defaults["power"], minimum=1),
@@ -56,23 +116,19 @@ def build_appliance_state(form_data):
     return appliances
 
 
-def generate_data(appliances, saving_mode=False):
+def get_hourly_usage(dataset_row, appliances, saving_mode=False):
     hours = list(range(24))
-    base_usage = [
-        0.28, 0.22, 0.2, 0.2, 0.26, 0.4,
-        0.74, 1.05, 0.96, 0.71, 0.64, 0.67,
-        0.78, 0.72, 0.66, 0.69, 0.82, 1.06,
-        1.35, 1.5, 1.3, 1.0, 0.74, 0.46,
-    ]
-    appliance_load = sum((row["power"] * row["hours"]) / 1000 for row in appliances.values())
-    profile_boost = appliance_load / 62
-    saving_adjustment = -0.18 if saving_mode else 0
-    usage = []
-    for idx, value in enumerate(base_usage):
-        peak_bonus = 0.12 if idx in (18, 19, 20) else 0.07 if idx in (7, 8) else 0
-        variation = random.uniform(-0.06, 0.06)
-        adjusted = max(0.14, value + profile_boost + saving_adjustment + peak_bonus + variation)
-        usage.append(round(adjusted, 2))
+    if not dataset_row:
+        usage = [0.4] * 24
+        return hours, usage
+
+    base_usage = [float(dataset_row[f"hour_{hour:02d}_kwh"]) for hour in hours]
+    base_appliance_total = sum(float(dataset_row[f"{name.lower()}_energy_kwh"]) for name in DEFAULT_APPLIANCES)
+    current_appliance_total = sum((item["power"] * item["hours"]) / 1000 for item in appliances.values())
+    delta = current_appliance_total - base_appliance_total
+    adjustment = delta / 24
+    saving_adjustment = -0.12 if saving_mode else 0
+    usage = [round(max(0.14, value + adjustment + saving_adjustment), 2) for value in base_usage]
     return hours, usage
 
 
@@ -82,15 +138,13 @@ def calculate_bill(total_usage):
     return daily_cost, monthly_bill
 
 
-def build_history(total_usage, saving_mode):
-    baseline = total_usage * (0.92 if saving_mode else 1.0)
-    multipliers = [1.08, 1.02, 0.96, 1.04, 0.93, 0.89, 1.0]
-    labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    history = []
-    for label, multiplier in zip(labels, multipliers):
-        daily_total = round(max(10.5, baseline * multiplier + random.uniform(-0.4, 0.4)), 2)
-        history.append({"label": label, "usage": daily_total})
-    return history
+def build_history(selected_date):
+    if not DATASET_ROWS:
+        return []
+    selected_index = next((idx for idx, row in enumerate(DATASET_ROWS) if row["date"] == selected_date), len(DATASET_ROWS) - 1)
+    start_index = max(0, selected_index - 6)
+    rows = DATASET_ROWS[start_index:selected_index + 1]
+    return [{"label": row["day_name"][:3], "usage": round(float(row["total_usage_kwh"]), 2)} for row in rows]
 
 
 def summarize_fault_reason(details, energy_kwh):
@@ -148,12 +202,10 @@ def appliance_analysis(appliances, total_usage):
 
         if energy_kwh > limit * 0.85:
             alerts.append(f"{name} is nearing its daily energy limit")
-
         if share >= 18:
             usage_reasons.append(f"{name} drove {share}% of today's consumption")
 
         phantom_load = "TV standby may be wasting power" if name == "TV" and details["condition"] == "standby" else ""
-
         rows.append(
             {
                 "name": name,
@@ -183,6 +235,12 @@ def get_peak_window(usage):
     return f"{format_hour(start)} - {format_hour(end)}"
 
 
+def build_scores(total_usage, weekly_history):
+    score = max(0, min(100, int(round(100 - (total_usage - 10) * 3.6))))
+    eco_score = max(0, min(100, int(round(score - 5 + (weekly_history[-1]["usage"] - weekly_history[0]["usage"])) * -1))) if weekly_history else score
+    return score, eco_score
+
+
 def get_pet_status(total_usage, faulty_count, score):
     if total_usage <= 19 and faulty_count == 0 and score >= 80:
         return "happy", "Great job! Efficient usage", 26, "Your pet feels energetic because the home stayed efficient today."
@@ -191,15 +249,9 @@ def get_pet_status(total_usage, faulty_count, score):
     return "sick", "High usage detected!", 94, "Your pet is suffering because heavy usage or a faulty appliance is stressing the home."
 
 
-def build_scores(total_usage, weekly_history):
-    score = max(0, min(100, int(round(100 - (total_usage - 10) * 3.6))))
-    eco_score = max(0, min(100, int(round(score - 5 + (weekly_history[-1]["usage"] - weekly_history[0]["usage"])) * -1)))
-    return score, eco_score
-
-
 def build_predictions(total_usage, weekly_history):
-    yesterday_usage = weekly_history[-2]["usage"]
-    weekly_average = round(sum(day["usage"] for day in weekly_history) / len(weekly_history), 2)
+    yesterday_usage = weekly_history[-2]["usage"] if len(weekly_history) >= 2 else total_usage
+    weekly_average = round(sum(day["usage"] for day in weekly_history) / len(weekly_history), 2) if weekly_history else total_usage
     tomorrow_usage = round((total_usage * 0.65) + (weekly_average * 0.35), 2)
     monthly_bill = round(total_usage * UNIT_COST * 30, 2)
     next_bill = round(((weekly_average + total_usage) / 2) * UNIT_COST * 30, 2)
@@ -230,11 +282,7 @@ def explain_usage_change(total_usage, predictions, rows):
     direction = "increased" if delta > 0 else "decreased"
     main_driver = max(rows, key=lambda row: row["energy_kwh"])
     reason = f"{main_driver['name']} contributed the most energy today at {main_driver['share']}%."
-    return {
-        "delta": abs(delta),
-        "direction": direction,
-        "reason": reason,
-    }
+    return {"delta": abs(delta), "direction": direction, "reason": reason}
 
 
 def build_alerts(total_usage, peak_usage, average_usage, appliance_alerts, pet_status, saving_mode):
@@ -260,11 +308,21 @@ def build_pet_rewards(score, weekly_history):
     return streak, badge
 
 
+@app.route("/dataset/download")
+def download_dataset():
+    return send_from_directory(DATASET_PATH.parent, DATASET_PATH.name, as_attachment=True)
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
-    saving_mode = request.form.get("saving_mode") == "on"
-    appliances = build_appliance_state(request.form if request.method == "POST" else {})
-    hours, usage = generate_data(appliances, saving_mode=saving_mode)
+    selected_input = request.values.get("selected_date")
+    dataset_row, available_dates = get_selected_row(selected_input)
+    dataset_defaults = build_dataset_defaults(dataset_row)
+    initial_saving_mode = parse_int(dataset_row.get("saving_mode"), 0) == 1 if dataset_row else False
+    saving_mode = request.form.get("saving_mode") == "on" if request.method == "POST" else initial_saving_mode
+    appliances = build_appliance_state(request.form if request.method == "POST" else {}, dataset_defaults)
+
+    hours, usage = get_hourly_usage(dataset_row, appliances, saving_mode=saving_mode)
     total_usage = round(sum(usage), 2)
     peak_usage = max(usage)
     peak_hour_index = usage.index(peak_usage)
@@ -273,7 +331,7 @@ def index():
     peak_window = get_peak_window(usage)
     hour_labels = [format_hour(hour) for hour in hours]
 
-    weekly_history = build_history(total_usage, saving_mode)
+    weekly_history = build_history(dataset_row["date"] if dataset_row else None)
     daily_cost, monthly_bill = calculate_bill(total_usage)
     appliance_rows, appliance_alerts, recommendations, faulty_rows, usage_reasons = appliance_analysis(appliances, total_usage)
     score, eco_score = build_scores(total_usage, weekly_history)
@@ -283,10 +341,9 @@ def index():
     personalized_tips = build_personalized_tips(appliance_rows, peak_window, saving_mode)
     alerts = build_alerts(total_usage, peak_usage, average_usage, appliance_alerts, pet_status, saving_mode)
     streak, pet_badge = build_pet_rewards(score, weekly_history)
+    dataset_summary = get_dataset_summary()
 
-    suggestion = (
-        "WattWise AI acts like a smart energy pet. Keep checking in so it can warn you early, coach better habits, and reduce your bill."
-    )
+    suggestion = "WattWise AI acts like a smart energy pet. Keep checking in so it can warn you early, coach better habits, and reduce your bill."
     prediction_message = f"At current usage, your bill may reach Rs. {predictions['next_bill']:,.0f}"
     home_story = (
         "We built WattWise AI, a smart energy assistant that not only analyzes usage but also behaves like a virtual pet, "
@@ -326,6 +383,10 @@ def index():
         pet_badge=pet_badge,
         home_story=home_story,
         usage_reasons=usage_reasons,
+        dataset_summary=dataset_summary,
+        dataset_row=dataset_row,
+        available_dates=available_dates,
+        selected_date=dataset_row["date"] if dataset_row else "",
     )
 
 

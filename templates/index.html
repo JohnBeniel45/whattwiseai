@@ -3,398 +3,369 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0d1117" />
+  <meta name="theme-color" content="#0b0e14" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="WattWise AI" />
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
   <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <title>{{ title }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
-<body data-alerts='{{ alerts | tojson }}' data-pet-alert="{{ pet_alert }}">
-
-  <header>
-    <div class="label">WattWise AI</div>
-    <h1>Energy <span>Usage</span></h1>
-    <div class="date-stamp" id="date-stamp">Loading date...</div>
-    <div class="install-row">
-      <button id="install-btn" class="ghost-btn" hidden>Install App</button>
-    </div>
-  </header>
-
-  <div class="cards">
-    <div class="card total">
-      <div class="card-icon">🔋</div>
-      <div class="card-label">Total Today</div>
-      <div class="card-value">{{ total_usage }}<span class="card-unit">kWh</span></div>
-      <div class="card-sub">Future usage tomorrow: {{ predictions.tomorrow_usage }} kWh</div>
-    </div>
-
-    <div class="card peak">
-      <div class="card-icon">⚡</div>
-      <div class="card-label">Peak Window</div>
-      <div class="card-value">{{ peak_window }}</div>
-      <div class="card-sub">Peak hour at {{ peak_hour }}</div>
-    </div>
-
-    <div class="card tip">
-      <div class="card-icon">💬</div>
-      <div class="card-label">WattWise Story</div>
-      <div class="card-value">{{ home_story }}</div>
-    </div>
-  </div>
-
-  <div class="pet-card pet-{{ pet_status }}" style="max-width:860px; margin: 0 auto 32px;">
-    <div class="pet-header">🐾 Energy Pet</div>
-    <div class="pet-body">
-      <div class="pet-cat">
-        {% if pet_status == "happy" %}
-        <div class="cat-svg-wrap cat-happy-wrap">
-          <svg class="cat-svg" viewBox="0 0 160 180" xmlns="http://www.w3.org/2000/svg">
-            <g class="sparkles">
-              <text x="10" y="40" font-size="16" class="sparkle s1">✦</text>
-              <text x="130" y="30" font-size="12" class="sparkle s2">✦</text>
-              <text x="120" y="70" font-size="10" class="sparkle s3">✧</text>
-              <text x="20" y="75" font-size="10" class="sparkle s4">✧</text>
-            </g>
-            <path class="cat-tail" d="M105 145 Q140 130 135 105 Q130 90 115 100" stroke="#c97b2a" stroke-width="8" fill="none" stroke-linecap="round"/>
-            <ellipse cx="80" cy="138" rx="42" ry="36" fill="#e8962e"/>
-            <ellipse cx="80" cy="145" rx="24" ry="22" fill="#f5c97a"/>
-            <ellipse cx="80" cy="82" rx="38" ry="34" fill="#e8962e"/>
-            <polygon points="48,58 38,28 62,50" fill="#e8962e"/>
-            <polygon points="112,58 122,28 98,50" fill="#e8962e"/>
-            <polygon points="51,55 44,35 62,50" fill="#f0a0a0"/>
-            <polygon points="109,55 116,35 98,50" fill="#f0a0a0"/>
-            <path d="M70 60 Q80 55 90 60" stroke="#c97b2a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-            <path d="M65 68 Q80 62 95 68" stroke="#c97b2a" stroke-width="2" fill="none" stroke-linecap="round"/>
-            <ellipse cx="65" cy="80" rx="10" ry="11" fill="#1a2a0a"/>
-            <ellipse cx="95" cy="80" rx="10" ry="11" fill="#1a2a0a"/>
-            <ellipse cx="65" cy="80" rx="7" ry="8" fill="#3dba4e"/>
-            <ellipse cx="95" cy="80" rx="7" ry="8" fill="#3dba4e"/>
-            <ellipse cx="65" cy="79" rx="4" ry="5" fill="#111"/>
-            <ellipse cx="95" cy="79" rx="4" ry="5" fill="#111"/>
-            <circle cx="67" cy="77" r="1.5" fill="white"/>
-            <circle cx="97" cy="77" r="1.5" fill="white"/>
-            <ellipse cx="80" cy="92" rx="4" ry="3" fill="#e05080"/>
-            <path d="M75 96 Q80 101 85 96" stroke="#c04060" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-            <ellipse cx="80" cy="100" rx="4" ry="3" fill="#e06080"/>
-            <line x1="30" y1="88" x2="58" y2="91" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
-            <line x1="30" y1="94" x2="58" y2="94" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
-            <line x1="102" y1="91" x2="130" y2="88" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
-            <line x1="102" y1="94" x2="130" y2="94" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
-            <path d="M48 108 Q80 118 112 108" stroke="#4a90d9" stroke-width="6" fill="none" stroke-linecap="round"/>
-            <circle cx="80" cy="118" r="7" fill="#f5d020" stroke="#c9a800" stroke-width="1.5"/>
-            <ellipse cx="58" cy="170" rx="14" ry="8" fill="#e8962e"/>
-            <ellipse cx="102" cy="170" rx="14" ry="8" fill="#e8962e"/>
-          </svg>
-        </div>
-        {% elif pet_status == "tired" %}
-        <div class="cat-svg-wrap cat-tired-wrap">
-          <svg class="cat-svg" viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg">
-            <text x="100" y="18" font-size="13" class="tired-spark ts1" fill="#e8962e">!</text>
-            <text x="115" y="12" font-size="13" class="tired-spark ts2" fill="#e8962e">!</text>
-            <ellipse cx="115" cy="95" rx="58" ry="24" fill="#e8962e"/>
-            <ellipse cx="118" cy="100" rx="36" ry="16" fill="#f5c97a"/>
-            <path d="M58 90 Q30 95 28 108 Q26 118 40 115" stroke="#c97b2a" stroke-width="7" fill="none" stroke-linecap="round"/>
-            <ellipse cx="62" cy="82" rx="32" ry="28" fill="#e8962e"/>
-            <polygon points="38,62 28,38 52,60" fill="#e8962e"/>
-            <polygon points="86,62 90,38 72,60" fill="#e8962e"/>
-            <polygon points="41,60 33,42 52,58" fill="#f0a0a0"/>
-            <polygon points="84,60 87,42 72,58" fill="#f0a0a0"/>
-            <path d="M53 65 Q62 61 72 65" stroke="#c97b2a" stroke-width="2" fill="none" stroke-linecap="round"/>
-            <ellipse cx="50" cy="78" rx="9" ry="7" fill="#1a2a0a"/>
-            <ellipse cx="74" cy="78" rx="9" ry="7" fill="#1a2a0a"/>
-            <ellipse cx="50" cy="78" rx="6" ry="5" fill="#3dba4e"/>
-            <ellipse cx="74" cy="78" rx="6" ry="5" fill="#3dba4e"/>
-            <ellipse cx="50" cy="78" rx="3.5" ry="3.5" fill="#111"/>
-            <ellipse cx="74" cy="78" rx="3.5" ry="3.5" fill="#111"/>
-            <path d="M41 74 Q50 70 59 74" stroke="#c97b2a" stroke-width="3" fill="none" stroke-linecap="round"/>
-            <path d="M65 74 Q74 70 83 74" stroke="#c97b2a" stroke-width="3" fill="none" stroke-linecap="round"/>
-            <ellipse cx="62" cy="88" rx="3.5" ry="2.5" fill="#e05080"/>
-            <path d="M58 93 Q62 95 66 93" stroke="#c04060" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-            <line x1="20" y1="84" x2="44" y2="86" stroke="#c97b2a" stroke-width="1.2" opacity="0.6"/>
-            <line x1="20" y1="90" x2="44" y2="90" stroke="#c97b2a" stroke-width="1.2" opacity="0.6"/>
-            <line x1="80" y1="86" x2="104" y2="84" stroke="#c97b2a" stroke-width="1.2" opacity="0.6"/>
-            <line x1="80" y1="90" x2="104" y2="90" stroke="#c97b2a" stroke-width="1.2" opacity="0.6"/>
-            <ellipse cx="62" cy="112" rx="18" ry="9" fill="#e8962e"/>
-            <ellipse cx="92" cy="115" rx="16" ry="8" fill="#e8962e"/>
-            <rect x="148" y="70" width="36" height="20" rx="3" fill="none" stroke="#aaa" stroke-width="2"/>
-            <rect x="184" y="76" width="4" height="8" rx="1" fill="#aaa"/>
-            <rect x="150" y="72" width="10" height="16" rx="2" fill="#e05c2a"/>
-          </svg>
-        </div>
-        {% else %}
-        <div class="cat-svg-wrap cat-sick-wrap">
-          <svg class="cat-svg" viewBox="0 0 160 190" xmlns="http://www.w3.org/2000/svg">
-            <g class="lightning-group">
-              <polygon class="lightning" points="82,5 72,30 82,28 70,55 88,22 78,24" fill="#f5a623" stroke="#e8962e" stroke-width="1"/>
-              <text x="95" y="20" font-size="11" class="sparkle s1" fill="#f5d020">✦</text>
-              <text x="55" y="25" font-size="9" class="sparkle s2" fill="#f5d020">✧</text>
-              <text x="105" y="38" font-size="9" class="sparkle s3" fill="#f5d020">✦</text>
-            </g>
-            <path class="cat-tail" d="M108 150 Q142 138 138 112 Q134 96 118 106" stroke="#c97b2a" stroke-width="8" fill="none" stroke-linecap="round"/>
-            <ellipse cx="80" cy="145" rx="42" ry="36" fill="#e8962e"/>
-            <ellipse cx="80" cy="152" rx="24" ry="22" fill="#f5c97a"/>
-            <ellipse cx="80" cy="90" rx="38" ry="34" fill="#e8962e"/>
-            <polygon points="48,66 35,32 64,58" fill="#e8962e"/>
-            <polygon points="112,66 125,32 96,58" fill="#e8962e"/>
-            <polygon points="51,63 40,38 62,56" fill="#f0a0a0"/>
-            <polygon points="109,63 120,38 98,56" fill="#f0a0a0"/>
-            <path d="M70 67 Q80 62 90 67" stroke="#c97b2a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-            <path d="M65 75 Q80 69 95 75" stroke="#c97b2a" stroke-width="2" fill="none" stroke-linecap="round"/>
-            <ellipse cx="65" cy="88" rx="11" ry="12" fill="#1a2a0a"/>
-            <ellipse cx="95" cy="88" rx="11" ry="12" fill="#1a2a0a"/>
-            <ellipse cx="65" cy="88" rx="8" ry="9" fill="#3dba4e"/>
-            <ellipse cx="95" cy="88" rx="8" ry="9" fill="#3dba4e"/>
-            <ellipse cx="65" cy="88" rx="5" ry="6" fill="#111"/>
-            <ellipse cx="95" cy="88" rx="5" ry="6" fill="#111"/>
-            <circle cx="67" cy="85" r="2" fill="white"/>
-            <circle cx="97" cy="85" r="2" fill="white"/>
-            <ellipse cx="80" cy="100" rx="4" ry="3" fill="#e05080"/>
-            <path d="M73 105 Q80 112 87 105" stroke="#c04060" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-            <ellipse cx="80" cy="108" rx="5" ry="4" fill="#c04060" opacity="0.5"/>
-            <line x1="28" y1="96" x2="56" y2="98" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
-            <line x1="28" y1="102" x2="56" y2="102" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
-            <line x1="104" y1="98" x2="132" y2="96" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
-            <line x1="104" y1="102" x2="132" y2="102" stroke="#c97b2a" stroke-width="1.2" opacity="0.7"/>
-            <path d="M48 116 Q80 126 112 116" stroke="#4a90d9" stroke-width="6" fill="none" stroke-linecap="round"/>
-            <circle cx="80" cy="126" r="7" fill="#f5d020" stroke="#c9a800" stroke-width="1.5"/>
-            <ellipse cx="58" cy="177" rx="14" ry="8" fill="#e8962e"/>
-            <ellipse cx="102" cy="177" rx="14" ry="8" fill="#e8962e"/>
-          </svg>
-        </div>
-        {% endif %}
+<body id="top" data-alerts='{{ alerts | tojson }}' data-pet-alert="{{ pet_alert }}">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-bolt"></span>
+        <span class="brand-text">WattWise</span>
       </div>
-      <div class="pet-info">
-        <div class="pet-status-badge status-{{ pet_status }}">{{ pet_status | upper }}</div>
-        <div class="pet-message">{{ pet_message }}</div>
-        <div class="pet-subtext">{{ pet_alert }}</div>
-        <div class="pet-reward-row">
-          <span class="pet-chip">{{ streak }} day streak</span>
-          <span class="pet-chip">{{ pet_badge }}</span>
-        </div>
-        <div class="pet-meter">
-          <div class="pet-meter-label">Energy Level</div>
-          <div class="pet-meter-bar">
-            <div class="pet-meter-fill status-fill-{{ pet_status }}" style="width: {{ pet_meter }}%;"></div>
-          </div>
-        </div>
+      <div class="topbar-actions">
+        <button id="install-btn" class="icon-btn install-btn" hidden>Install</button>
+        <div class="avatar-dot"></div>
       </div>
-    </div>
-  </div>
+    </header>
 
-  <div class="cards secondary-cards">
-    <div class="card bill">
-      <div class="card-icon">💰</div>
-      <div class="card-label">Daily Cost</div>
-      <div class="card-value">Rs. {{ daily_cost }}</div>
-      <div class="card-sub">Forecast bill: Rs. {{ monthly_bill }}</div>
-    </div>
-
-    <div class="card score">
-      <div class="card-icon">🏆</div>
-      <div class="card-label">Energy Score</div>
-      <div class="card-value">{{ score }}<span class="card-unit">/100</span></div>
-      <div class="card-sub">Eco score {{ eco_score }}/100</div>
-    </div>
-
-    <div class="card prediction">
-      <div class="card-icon">🔮</div>
-      <div class="card-label">Bill Forecast</div>
-      <div class="card-value prediction-copy">{{ prediction_message }}</div>
-      <div class="card-sub">Yesterday {{ predictions.yesterday_usage }} kWh • Weekly avg {{ predictions.weekly_average }} kWh</div>
-    </div>
-  </div>
-
-  <div class="chart-section">
-    <div class="chart-title">Hourly Breakdown (kWh)</div>
-    <div class="chart-meta">
-      <span>Average hourly usage: {{ average_usage }} kWh</span>
-      <span>Peak highlighted at {{ peak_hour }}</span>
-    </div>
-
-    <div class="chart-inner">
-      <div class="y-labels">
-        <span>2.0</span>
-        <span>1.5</span>
-        <span>1.0</span>
-        <span>0.5</span>
-        <span>0.0</span>
-      </div>
-
-      <div class="bar-chart" id="bar-chart">
-        {% for i in range(hours | length) %}
-          {% set height_pct = (usage[i] / 2.0 * 100) | round(1) %}
-          {% set is_peak = (usage[i] == peak_usage) %}
-          <div class="bar-wrap">
-            <div class="bar {% if is_peak %}is-peak{% endif %}" style="height: {{ height_pct }}px; animation-delay: {{ (i * 0.025) | round(3) }}s;" title="{{ hours[i] }}: {{ usage[i] }} kWh"></div>
-            <span class="bar-label">{{ hours[i] }}</span>
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="legend">
-      <span><span class="legend-dot normal"></span>Normal</span>
-      <span><span class="legend-dot peak"></span>Peak Hour</span>
-    </div>
-  </div>
-
-  <div class="cards tertiary-cards">
-    <div class="card insight">
-      <div class="card-icon">📈</div>
-      <div class="card-label">Usage Behavior</div>
-      <div class="card-value">{{ usage_change.direction | capitalize }} by {{ usage_change.delta }} kWh</div>
-      <div class="card-sub">{{ usage_change.reason }}</div>
-    </div>
-
-    <div class="card insight">
-      <div class="card-icon">🌱</div>
-      <div class="card-label">Peak Advice</div>
-      <div class="card-value">Highest usage at {{ peak_window }}</div>
-      <div class="card-sub">Shift usage to morning to save cost</div>
-    </div>
-
-    <div class="card insight">
-      <div class="card-icon">🤖</div>
-      <div class="card-label">Personal AI Tips</div>
-      <div class="card-list">
-        {% for tip in personalized_tips %}
-        <div class="mini-line">{{ tip }}</div>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-
-  <section class="chart-section stacked-section">
-    <div class="chart-title">Appliance Intelligence</div>
-    <form method="post" class="appliance-form">
-      <div class="form-action-row">
-        <label class="toggle-row">
-          <input type="checkbox" name="saving_mode" value="on" {% if saving_mode %}checked{% endif %} />
-          <span>Enable Saving Mode</span>
-        </label>
-        <button type="submit" class="action-btn">Update Appliance Simulation</button>
-      </div>
-
-      {% for appliance in appliance_rows %}
-      <div class="appliance-card {% if appliance.faulty %}faulty{% endif %}">
-        <div class="appliance-top">
+    <main class="mobile-frame">
+      <section class="hero-card panel panel-hero">
+        <div class="eyebrow">Consumption Intelligence</div>
+        <div class="hero-grid">
           <div>
-            <div class="card-label">{{ appliance.name }}</div>
-            <div class="appliance-metrics">{{ appliance.energy_kwh }} kWh • Rs. {{ appliance.cost }} • {{ appliance.share }}% share</div>
+            <h1 class="hero-title">Energy that feels alive.</h1>
+            <p class="hero-copy">{{ home_story }}</p>
           </div>
-          {% if appliance.faulty %}
-          <div class="pet-status-badge status-sick">FAULT</div>
-          {% else %}
-          <div class="pet-status-badge status-happy">HEALTHY</div>
-          {% endif %}
+          <form method="get" class="hero-controls">
+            <label class="field-label">
+              Select Dataset Day
+              <input class="field-input" type="date" name="selected_date" value="{{ selected_date }}" min="{{ dataset_summary.start if dataset_summary.available else '' }}" max="{{ dataset_summary.end if dataset_summary.available else '' }}" />
+            </label>
+            <button type="submit" class="primary-action">Load Day</button>
+          </form>
         </div>
-
-        <div class="appliance-grid">
-          <label>
-            Power (W)
-            <input type="number" step="1" min="1" name="{{ appliance.name.lower() }}_power" value="{{ appliance.power }}" />
-          </label>
-          <label>
-            Usage Hours
-            <input type="number" step="0.5" min="0" max="24" name="{{ appliance.name.lower() }}_hours" value="{{ appliance.hours }}" />
-          </label>
-          <label>
-            Age (Years)
-            <input type="number" step="1" min="0" max="20" name="{{ appliance.name.lower() }}_age" value="{{ appliance.age }}" />
-          </label>
-          <label>
-            Condition
-            <select name="{{ appliance.name.lower() }}_condition">
-              {% for option in ["good", "slow", "overheat", "noise", "standby"] %}
-              <option value="{{ option }}" {% if appliance.condition == option %}selected{% endif %}>{{ option | capitalize }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Maintained Recently
-            <select name="{{ appliance.name.lower() }}_maintenance">
-              <option value="yes" {% if appliance.maintenance == "yes" %}selected{% endif %}>Yes</option>
-              <option value="no" {% if appliance.maintenance == "no" %}selected{% endif %}>No</option>
-            </select>
-          </label>
+        <div class="hero-meta">
+          <span class="meta-chip live-chip"><span class="live-dot"></span>Live Monitoring</span>
+          <span class="meta-chip">PWA Ready</span>
+          <a class="meta-chip ghost-chip" href="{{ url_for('download_dataset') }}">Download Dataset</a>
         </div>
+      </section>
 
-        <div class="appliance-footer">
-          <div class="mini-line">Safe limit: {{ appliance.limit }} kWh/day</div>
-          <div class="mini-line">Health insight: {{ appliance.reason }}</div>
-          {% if appliance.phantom_load %}
-          <div class="mini-line warn-line">{{ appliance.phantom_load }}</div>
-          {% endif %}
-          {% if appliance.faulty %}
-          <a class="shop-link" href="{{ appliance.shopping_link }}" target="_blank" rel="noreferrer">Find efficient {{ appliance.name.lower() }} replacement</a>
-          {% endif %}
+      <section class="kpi-card panel">
+        <div class="kpi-label">Daily Consumption</div>
+        <div class="kpi-row">
+          <div class="kpi-stack">
+            <div class="kpi-value">{{ total_usage }}</div>
+            <div class="kpi-unit">kWh</div>
+          </div>
+          <div class="kpi-note">Tomorrow forecast {{ predictions.tomorrow_usage }} kWh</div>
         </div>
-      </div>
-      {% endfor %}
-    </form>
-  </section>
+        <p class="kpi-sub">Your usage is {% if usage_change.direction == "decreased" %}below{% else %}above{% endif %} your recent pattern and the pet reacts in real time.</p>
+      </section>
 
-  <section class="chart-section stacked-section">
-    <div class="chart-title">Weekly Report</div>
-    <div class="chart-meta">
-      <span>You used {{ predictions.weekly_average }} kWh on average this week</span>
-      <span>Tomorrow predicted usage: {{ predictions.tomorrow_usage }} kWh</span>
-    </div>
-    <div class="weekly-chart">
-      {% for day in weekly_history %}
-      <div class="week-bar-wrap">
-        <div class="week-bar" style="height: {{ ((day.usage / 30) * 100) | round(1) }}px; animation-delay: {{ (loop.index0 * 0.05) | round(2) }}s;"></div>
-        <span class="week-label">{{ day.label }}</span>
-        <span class="week-value">{{ day.usage }}</span>
-      </div>
-      {% endfor %}
-    </div>
-  </section>
+      <section class="grid-duo">
+        <article class="panel gauge-card">
+          <div class="section-head">
+            <div>
+              <h2>Current Load</h2>
+              <p>Real-time demand from the selected dataset day</p>
+            </div>
+          </div>
+          <div class="gauge-wrap">
+            <div class="gauge-ring" style="--gauge-value: {{ (total_usage / 32 * 100) | round(0) }}%;">
+              <div class="gauge-inner">
+                <strong>{{ average_usage }}</strong>
+                <span>kWh avg/hr</span>
+              </div>
+            </div>
+          </div>
+          <div class="mini-stats">
+            <div><span>Peak</span><strong>{{ peak_usage }} kWh</strong></div>
+            <div><span>Window</span><strong>{{ peak_window }}</strong></div>
+            <div><span>Score</span><strong>{{ score }}/100</strong></div>
+          </div>
+        </article>
 
-  <section class="chart-section stacked-section">
-    <div class="chart-title">Alerts & Suggestions</div>
-    <div class="alert-list">
-      {% for alert in alerts %}
-      <div class="alert-item {% if 'stable' in alert.lower() %}alert-ok{% else %}alert-warn{% endif %}">{{ alert }}</div>
-      {% endfor %}
-      {% for reason in usage_reasons %}
-      <div class="alert-item alert-tip">{{ reason }}</div>
-      {% endfor %}
-      {% for recommendation in recommendations %}
-      <div class="alert-item alert-tip">
-        <div>{{ recommendation.message }}</div>
-        <div class="mini-line">{{ recommendation.reason }}</div>
-        <a class="shop-link" href="{{ recommendation.link }}" target="_blank" rel="noreferrer">Open shopping suggestion</a>
-      </div>
-      {% endfor %}
-    </div>
-  </section>
+        <article class="panel bill-card">
+          <div class="icon-tile"></div>
+          <h2>Estimated Bill</h2>
+          <p>Projected cost for the current usage pattern</p>
+          <div class="price-row">
+            <strong>Rs. {{ monthly_bill }}</strong>
+            <span>est.</span>
+          </div>
+          <div class="trend-text">{{ prediction_message }}</div>
+          <a class="secondary-action" href="#plan-section">Review Savings Plan</a>
+        </article>
+      </section>
 
-  <footer>
-    Data refreshes on every page load · Flask + Jinja2 · PWA ready for mobile install
-  </footer>
+      <section class="pet-card-luminous panel">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Virtual Pet</div>
+            <h2>Energy Pet</h2>
+          </div>
+          <span class="status-pill status-{{ pet_status }}">{{ pet_status | upper }}</span>
+        </div>
+        <div class="pet-layout">
+          <div class="pet-visual">
+            {% if pet_status == "happy" %}
+            <div class="cat-svg-wrap cat-happy-wrap">
+              <svg class="cat-svg" viewBox="0 0 160 180" xmlns="http://www.w3.org/2000/svg">
+                <g class="sparkles">
+                  <text x="10" y="40" font-size="16" class="sparkle s1">✦</text>
+                  <text x="130" y="30" font-size="12" class="sparkle s2">✦</text>
+                  <text x="120" y="70" font-size="10" class="sparkle s3">✧</text>
+                  <text x="20" y="75" font-size="10" class="sparkle s4">✧</text>
+                </g>
+                <path class="cat-tail" d="M105 145 Q140 130 135 105 Q130 90 115 100" stroke="#37ddb5" stroke-width="8" fill="none" stroke-linecap="round"/>
+                <ellipse cx="80" cy="138" rx="42" ry="36" fill="#84adff"/>
+                <ellipse cx="80" cy="145" rx="24" ry="22" fill="#00fdc1"/>
+                <ellipse cx="80" cy="82" rx="38" ry="34" fill="#84adff"/>
+                <polygon points="48,58 38,28 62,50" fill="#84adff"/>
+                <polygon points="112,58 122,28 98,50" fill="#84adff"/>
+                <ellipse cx="65" cy="80" rx="10" ry="11" fill="#0b0e14"/>
+                <ellipse cx="95" cy="80" rx="10" ry="11" fill="#0b0e14"/>
+                <ellipse cx="80" cy="92" rx="4" ry="3" fill="#ecedf6"/>
+                <path d="M75 96 Q80 101 85 96" stroke="#ecedf6" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+              </svg>
+            </div>
+            {% elif pet_status == "tired" %}
+            <div class="cat-svg-wrap cat-tired-wrap">
+              <svg class="cat-svg" viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg">
+                <text x="100" y="18" font-size="13" class="tired-spark ts1" fill="#84adff">!</text>
+                <text x="115" y="12" font-size="13" class="tired-spark ts2" fill="#84adff">!</text>
+                <ellipse cx="115" cy="95" rx="58" ry="24" fill="#5091ff"/>
+                <ellipse cx="118" cy="100" rx="36" ry="16" fill="#00fdc1"/>
+                <path d="M58 90 Q30 95 28 108 Q26 118 40 115" stroke="#84adff" stroke-width="7" fill="none" stroke-linecap="round"/>
+                <ellipse cx="62" cy="82" rx="32" ry="28" fill="#5091ff"/>
+                <ellipse cx="62" cy="88" rx="3.5" ry="2.5" fill="#ecedf6"/>
+                <path d="M58 93 Q62 95 66 93" stroke="#ecedf6" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+              </svg>
+            </div>
+            {% else %}
+            <div class="cat-svg-wrap cat-sick-wrap">
+              <svg class="cat-svg" viewBox="0 0 160 190" xmlns="http://www.w3.org/2000/svg">
+                <g class="lightning-group">
+                  <polygon class="lightning" points="82,5 72,30 82,28 70,55 88,22 78,24" fill="#00fdc1" stroke="#84adff" stroke-width="1"/>
+                </g>
+                <path class="cat-tail" d="M108 150 Q142 138 138 112 Q134 96 118 106" stroke="#84adff" stroke-width="8" fill="none" stroke-linecap="round"/>
+                <ellipse cx="80" cy="145" rx="42" ry="36" fill="#6c9fff"/>
+                <ellipse cx="80" cy="152" rx="24" ry="22" fill="#00fdc1"/>
+                <ellipse cx="80" cy="90" rx="38" ry="34" fill="#6c9fff"/>
+                <ellipse cx="65" cy="88" rx="11" ry="12" fill="#0b0e14"/>
+                <ellipse cx="95" cy="88" rx="11" ry="12" fill="#0b0e14"/>
+                <ellipse cx="80" cy="100" rx="4" ry="3" fill="#ecedf6"/>
+                <path d="M73 105 Q80 112 87 105" stroke="#ecedf6" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+              </svg>
+            </div>
+            {% endif %}
+          </div>
+          <div class="pet-copy">
+            <p class="pet-message">{{ pet_message }}</p>
+            <p class="pet-alert">{{ pet_alert }}</p>
+            <div class="pet-chip-row">
+              <span class="meta-chip">{{ streak }} day streak</span>
+              <span class="meta-chip">{{ pet_badge }}</span>
+            </div>
+            <div class="pet-meter-shell">
+              <span>Energy Level</span>
+              <div class="pet-meter-track">
+                <div class="pet-meter-fill status-fill-{{ pet_status }}" style="width: {{ pet_meter }}%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel breakdown-panel">
+        <div class="section-head">
+          <div>
+            <h2>Appliance Breakdown</h2>
+            <p>Money, usage share, and health in one view</p>
+          </div>
+          <span class="link-pill">View All</span>
+        </div>
+        <div class="breakdown-list">
+          {% for appliance in appliance_rows %}
+          <article class="breakdown-row {% if appliance.faulty %}faulty{% endif %}">
+            <div class="breakdown-main">
+              <div>
+                <h3>{{ appliance.name }}</h3>
+                <p>{{ appliance.energy_kwh }} kWh · Rs. {{ appliance.cost }}</p>
+              </div>
+              <div class="breakdown-share">{{ appliance.share }}%</div>
+            </div>
+            <div class="breakdown-bar">
+              <div class="breakdown-fill {% if appliance.faulty %}faulty{% endif %}" style="width: {{ appliance.share }}%;"></div>
+            </div>
+            <div class="breakdown-meta">
+              <span>{{ appliance.reason }}</span>
+              <span class="{% if appliance.faulty %}fault-text{% endif %}">{% if appliance.faulty %}Needs attention{% else %}Healthy{% endif %}</span>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="grid-duo">
+        <article class="panel observation-card">
+          <div class="eyebrow">AI Observation</div>
+          <h2>{{ usage_change.reason }}</h2>
+          <p>Your energy usage {{ usage_change.direction }} by {{ usage_change.delta }} kWh compared with the recent baseline.</p>
+          <div class="observation-actions">
+            <span class="meta-chip">Peak {{ peak_window }}</span>
+            <span class="meta-chip">Eco {{ eco_score }}/100</span>
+          </div>
+        </article>
+        <article id="plan-section" class="panel plan-card">
+          <div class="eyebrow">Actionable Intelligence</div>
+          <h2>Plan</h2>
+          <div class="savings-number">Rs. {{ monthly_bill }}</div>
+          <p>Projected monthly cost before applying the smart plan. Your active recommendations can lower this.</p>
+          <button class="primary-action action-wide">Activate Full Plan</button>
+        </article>
+      </section>
+
+      <section class="panel" id="appliance-section">
+        <div class="section-head">
+          <div>
+            <h2>Appliance Dynamics</h2>
+            <p>Adjust device values and immediately re-run the intelligence engine</p>
+          </div>
+        </div>
+        <form method="post" class="appliance-form-luminous">
+          <input type="hidden" name="selected_date" value="{{ selected_date }}" />
+          <label class="toggle-luminous">
+            <input type="checkbox" name="saving_mode" value="on" {% if saving_mode %}checked{% endif %} />
+            <span>Enable Saving Mode</span>
+          </label>
+          {% for appliance in appliance_rows %}
+          <div class="device-card {% if appliance.faulty %}faulty{% endif %}">
+            <div class="device-top">
+              <div>
+                <div class="device-name">{{ appliance.name }}</div>
+                <div class="device-sub">{{ appliance.energy_kwh }} kWh · Rs. {{ appliance.cost }}</div>
+              </div>
+              <span class="status-pill status-{{ 'sick' if appliance.faulty else 'happy' }}">{{ 'FAULT' if appliance.faulty else 'OK' }}</span>
+            </div>
+            <div class="device-grid">
+              <label>
+                Power (W)
+                <input class="field-input" type="number" step="1" min="1" name="{{ appliance.name.lower() }}_power" value="{{ appliance.power }}" />
+              </label>
+              <label>
+                Usage Hours
+                <input class="field-input" type="number" step="0.5" min="0" max="24" name="{{ appliance.name.lower() }}_hours" value="{{ appliance.hours }}" />
+              </label>
+              <label>
+                Age (Years)
+                <input class="field-input" type="number" step="1" min="0" max="20" name="{{ appliance.name.lower() }}_age" value="{{ appliance.age }}" />
+              </label>
+              <label>
+                Condition
+                <select class="field-input" name="{{ appliance.name.lower() }}_condition">
+                  {% for option in ["good", "slow", "overheat", "noise", "standby"] %}
+                  <option value="{{ option }}" {% if appliance.condition == option %}selected{% endif %}>{{ option | capitalize }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Maintained Recently
+                <select class="field-input" name="{{ appliance.name.lower() }}_maintenance">
+                  <option value="yes" {% if appliance.maintenance == "yes" %}selected{% endif %}>Yes</option>
+                  <option value="no" {% if appliance.maintenance == "no" %}selected{% endif %}>No</option>
+                </select>
+              </label>
+            </div>
+            {% if appliance.faulty %}
+            <a class="ghost-link" href="{{ appliance.shopping_link }}" target="_blank" rel="noreferrer">Find efficient {{ appliance.name.lower() }} replacement</a>
+            {% endif %}
+          </div>
+          {% endfor %}
+          <button type="submit" class="primary-action action-wide">Update Appliance Simulation</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Weekly Progress</h2>
+            <p>You used {{ predictions.weekly_average }} kWh on average this week</p>
+          </div>
+        </div>
+        <div class="weekly-bars">
+          {% for day in weekly_history %}
+          <div class="week-col">
+            <div class="week-track">
+              <div class="week-fill" style="height: {{ ((day.usage / 30) * 100) | round(1) }}%;"></div>
+            </div>
+            <span>{{ day.label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="panel" id="alerts-section">
+        <div class="section-head">
+          <div>
+            <h2>Alerts & Suggestions</h2>
+            <p>What needs attention right now</p>
+          </div>
+        </div>
+        <div class="alert-stack">
+          {% for alert in alerts %}
+          <div class="alert-card {% if 'stable' in alert.lower() %}ok{% else %}warn{% endif %}">{{ alert }}</div>
+          {% endfor %}
+          {% for recommendation in recommendations %}
+          <div class="alert-card tip">
+            <strong>{{ recommendation.message }}</strong>
+            <span>{{ recommendation.reason }}</span>
+            <a class="ghost-link" href="{{ recommendation.link }}" target="_blank" rel="noreferrer">Open shopping suggestion</a>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      {% if dataset_summary.available %}
+      <section class="panel dataset-card">
+        <div class="section-head">
+          <div>
+            <h2>Dataset Layer</h2>
+            <p>{{ dataset_summary.rows }} records from {{ dataset_summary.start }} to {{ dataset_summary.end }}</p>
+          </div>
+        </div>
+        <div class="dataset-grid">
+          <div><span>Features</span><strong>{{ dataset_summary.features }}</strong></div>
+          <div><span>Viewing</span><strong>{{ selected_date }}</strong></div>
+          <div><span>Source</span><strong>Synthetic 2026</strong></div>
+        </div>
+      </section>
+      {% endif %}
+    </main>
+
+    <nav class="bottom-nav">
+      <a href="#top" class="nav-item is-active"><span>Dashboard</span></a>
+      <a href="#appliance-section" class="nav-item"><span>Devices</span></a>
+      <a href="#alerts-section" class="nav-item"><span>Insights</span></a>
+      <a href="#plan-section" class="nav-item"><span>Plan</span></a>
+    </nav>
+  </div>
 
   <script>
-    const d = new Date();
-    document.getElementById('date-stamp').textContent =
-      d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-    if ('serviceWorker' in navigator) {
+    if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js') }}");
     }
 
     let deferredPrompt = null;
-    const installBtn = document.getElementById('install-btn');
-    window.addEventListener('beforeinstallprompt', (event) => {
+    const installBtn = document.getElementById("install-btn");
+    window.addEventListener("beforeinstallprompt", (event) => {
       event.preventDefault();
       deferredPrompt = event;
       installBtn.hidden = false;
     });
 
-    installBtn?.addEventListener('click', async () => {
+    installBtn?.addEventListener("click", async () => {
       if (!deferredPrompt) return;
       deferredPrompt.prompt();
       await deferredPrompt.userChoice;
@@ -403,17 +374,17 @@
     });
 
     async function notifyEnergyAlerts() {
-      if (!('Notification' in window)) return;
-      const alerts = JSON.parse(document.body.dataset.alerts || '[]');
+      if (!("Notification" in window)) return;
+      const alerts = JSON.parse(document.body.dataset.alerts || "[]");
       const petAlert = document.body.dataset.petAlert;
-      if (Notification.permission === 'default') {
+      if (Notification.permission === "default") {
         await Notification.requestPermission();
       }
-      if (Notification.permission === 'granted' && alerts.length) {
+      if (Notification.permission === "granted" && alerts.length) {
         const [firstAlert] = alerts;
         navigator.serviceWorker?.ready.then((registration) => {
-          registration.showNotification('WattWise AI Alert', {
-            body: firstAlert.includes('stable') ? petAlert : firstAlert,
+          registration.showNotification("WattWise AI Alert", {
+            body: firstAlert.includes("stable") ? petAlert : firstAlert,
             icon: "{{ url_for('static', filename='icon.svg') }}",
             badge: "{{ url_for('static', filename='icon.svg') }}"
           });
@@ -423,6 +394,5 @@
 
     notifyEnergyAlerts();
   </script>
-
 </body>
 </html>

@@ -16,15 +16,24 @@ WattWise AI is a Flask-based smart energy dashboard designed for hackathon demos
 - Peak-highlighted hourly bar chart with preserved animation
 - Weekly report, previous-vs-current usage comparison, and future bill prediction
 - Progressive Web App support for installable mobile use and notifications
+- One-year synthetic dataset powering analytics, appliance health, pet state, and recommendations
+- Luminous-inspired mobile UI with glass cards, bottom navigation, and phone-first layout
 
 ## Project Structure
 
 ```text
 app.py
+data/
+  wattwise_synthetic_2026.csv
+scripts/
+  generate_synthetic_dataset.py
 templates/
   index.html
 static/
+  reference-ui.webp
   style.css
+requirements.txt
+render.yaml
 ```
 
 ## Run Locally
@@ -32,7 +41,7 @@ static/
 1. Install Flask:
 
 ```bash
-pip install flask
+pip install -r requirements.txt
 ```
 
 2. Start the app:
@@ -43,10 +52,24 @@ python app.py
 
 3. Open `http://127.0.0.1:5000`
 
+## Deploy on Render
+
+1. Push the repo to GitHub.
+2. Go to [Render](https://render.com/) and create a new Web Service.
+3. Connect this repository and select the `codex/wattwise-ai-dashboard` branch.
+4. Render can auto-detect `render.yaml`, or use:
+
+```bash
+Build command: pip install -r requirements.txt
+Start command: gunicorn app:app
+```
+
+5. After deploy, open the Render URL on mobile and install it as a PWA.
+
 ## Notes
 
 - Appliance values can be edited directly from the dashboard.
 - Appliance health details can be adjusted to simulate faults and replacement advice.
-- Every refresh regenerates the 24-hour usage profile.
+- The app uses the synthetic dataset directly, and the selected date changes the loaded daily profile.
 - Fault detection is rule-based to keep the app fast and hackathon-friendly.
 - The app can be installed on mobile as a PWA with offline caching support.

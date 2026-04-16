@@ -235,7 +235,7 @@
             <div class="recommendation-top">
               <div>
                 <h3>{{ recommendation.name }}</h3>
-                <p>For {{ recommendation.target_appliance }} · Rs. {{ recommendation.price }}</p>
+                <p>For {{ recommendation.target_appliance }} · Rs. {{ recommendation.price }} · {{ recommendation.store }}</p>
               </div>
               <div class="recommendation-score">AI {{ (recommendation.score * 100) | round(0) }}%</div>
             </div>
@@ -246,7 +246,7 @@
             <p class="recommendation-text">{{ recommendation.review_summary }}</p>
             <p class="recommendation-text">{{ recommendation.why_it_fits }}</p>
             <p class="recommendation-text">{{ recommendation.reason }}</p>
-            <a class="ghost-link" href="{{ recommendation.url }}" target="_blank" rel="noreferrer">Open Product</a>
+            <a class="ghost-link buy-link" href="{{ recommendation.url }}" target="_blank" rel="noreferrer">View Exact Product</a>
           </article>
           {% endfor %}
           {% if not recommendations %}
@@ -379,7 +379,7 @@
           <div class="alert-card tip">
             <strong>{{ recommendation.name }}</strong>
             <span>{{ recommendation.reason }}</span>
-            <a class="ghost-link" href="{{ recommendation.url }}" target="_blank" rel="noreferrer">Open shopping suggestion</a>
+            <a class="ghost-link" href="{{ recommendation.url }}" target="_blank" rel="noreferrer">Open exact product</a>
           </div>
           {% endfor %}
         </div>

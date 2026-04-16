@@ -633,7 +633,7 @@ body {
 .cat-svg { display: block; }
 .cat-happy-wrap .cat-svg { width: 140px; height: 155px; animation: catBounce 2.4s ease-in-out infinite; }
 .cat-tired-wrap .cat-svg { width: 170px; height: 115px; animation: tirednod 3s ease-in-out infinite; }
-.cat-sick-wrap .cat-svg { width: 140px; height: 165px; animation: catShake 0.5s ease-in-out infinite; }
+.cat-sick-wrap .cat-svg { width: 140px; height: 165px; animation: sickBreath 3.2s ease-in-out infinite; opacity: 0.9; }
 
 @keyframes catBounce {
   0%, 100% { transform: translateY(0); }
@@ -665,19 +665,23 @@ body {
   50% { opacity: 0.1; }
 }
 
-@keyframes catShake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-3px) rotate(-1deg); }
-  75% { transform: translateX(3px) rotate(1deg); }
+@keyframes sickBreath {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(5px) rotate(-1deg); }
 }
 
-.lightning {
-  animation: boltFlash 0.9s ease-in-out infinite;
+.sick-z {
+  fill: var(--muted);
+  opacity: 0.7;
+  animation: sleepFloat 2.4s ease-in-out infinite;
 }
 
-@keyframes boltFlash {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+.z2 { animation-delay: 0.35s; }
+.z3 { animation-delay: 0.7s; }
+
+@keyframes sleepFloat {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50% { opacity: 0.9; transform: translateY(-5px); }
 }
 
 .sparkle { animation: twinkle 1.4s ease-in-out infinite; }
@@ -742,7 +746,7 @@ body {
 
 .status-fill-happy { background: linear-gradient(90deg, var(--secondary), #7fffe0); }
 .status-fill-tired { background: linear-gradient(90deg, var(--primary), #5fc0ff); }
-.status-fill-sick { background: linear-gradient(90deg, var(--danger), var(--secondary)); }
+.status-fill-sick { background: linear-gradient(90deg, var(--danger), rgba(255, 113, 108, 0.42)); }
 
 .breakdown-list,
 .alert-stack,

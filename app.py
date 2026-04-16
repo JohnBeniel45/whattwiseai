@@ -478,7 +478,7 @@ def ai_pet_response(monthly_bill, total_usage, predictions):
         return "happy", "Bill looks healthy and efficient", 24, "Your pet is relaxed because your projected bill stays comfortably low."
     if predicted_state == "tired":
         return "tired", "Bill is rising, trim usage now", 60, "Your pet is uneasy because the bill trend is climbing above your weekly baseline."
-    return "sick", "Bill pressure is too high", 92, "Your pet is stressed because the forecasted bill is too expensive for this usage pattern."
+    return "sick", "Bill pressure is too high", 18, "Your pet is stressed because the forecasted bill is too expensive for this usage pattern."
 
 
 def appliance_feature_vector(details, energy_kwh, share):

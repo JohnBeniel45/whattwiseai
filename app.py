@@ -61,7 +61,39 @@ PRODUCT_CATALOG = [
         "url": "https://www.voltas.com/collections/1-5-ton-5-star-ac/products/voltas-pureair-inverter-split-ac-1-5-ton-5-star-185v-verdant-exotica",
         "image_url": "https://www.voltas.com/cdn/shop/files/4503500.png?v=1759483963&width=1080",
     },
+    {
+        "id": "fan-croma-af2093",
+        "category": "Fan",
+        "name": "Croma AF2093 5 Star 1200mm BLDC Ceiling Fan",
+        "rating": 4.4,
+        "review_count": 156,
+        "price": 2499,
+        "store": "Croma",
+        "review_summary": "BLDC motor, remote control, and 5-star rating help reduce fan running cost.",
+        "why_it_fits": "A strong replacement when AI sees unusually high fan hours or fan-driven energy pressure.",
+        "url": "https://www.croma.com/croma-af2093-5-star-1200mm-3-blade-bldc-motor-ceiling-fan-with-remote-energy-efficient-smoke-brown-/p/304884",
+        "image_url": "https://placehold.co/900x560/10131a/00fdc1?text=Croma+BLDC+Fan",
+    },
+    {
+        "id": "tv-croma-smart-led",
+        "category": "TV",
+        "name": "Energy Efficient Smart LED TV Replacement",
+        "rating": 4.2,
+        "review_count": 520,
+        "price": 18990,
+        "store": "Croma",
+        "review_summary": "Modern LED TVs reduce standby waste and improve display efficiency compared with older sets.",
+        "why_it_fits": "Recommended when AI detects standby/phantom load or older TV efficiency loss.",
+        "url": "https://www.croma.com/televisions-accessories/led-tvs/c/997",
+        "image_url": "https://placehold.co/900x560/10131a/84adff?text=Efficient+Smart+TV",
+    },
 ]
+PRODUCT_CATEGORY_FALLBACKS = {
+    "AC": "https://www.croma.com/home-appliances/air-conditioners/c/87",
+    "Fan": "https://www.croma.com/home-appliances/fans/ceiling-fans/c/863",
+    "Iron": "https://www.croma.com/home-appliances/garment-care/irons/c/118",
+    "TV": "https://www.croma.com/televisions-accessories/led-tvs/c/997",
+}
 
 
 def load_dataset():
@@ -582,6 +614,13 @@ def recommend_products(appliance_rows, monthly_bill):
     return unique
 
 
+def get_replacement_link(category):
+    product = next((item for item in PRODUCT_CATALOG if item["category"] == category), None)
+    if product:
+        return product["url"]
+    return PRODUCT_CATEGORY_FALLBACKS.get(category, "https://www.croma.com/")
+
+
 def ai_forecast_and_product_brain(total_usage, monthly_bill, predictions, weekly_history, appliance_rows, recommendations):
     fallback = {
         "next_bill": predictions["next_bill"],
@@ -715,7 +754,7 @@ def appliance_analysis(appliances, total_usage, monthly_bill):
                 "faulty": faulty,
                 "reason": reason,
                 "limit": APPLIANCE_LIMITS[name],
-                "shopping_link": next((item["url"] for item in PRODUCT_CATALOG if item["category"] == name), "#"),
+                "shopping_link": get_replacement_link(name),
                 "phantom_load": "TV standby may be wasting power" if name == "TV" and details["condition"] == "standby" else "",
                 "ai_fault_score": ai_score,
                 "bill_impact": round((cost / max(monthly_bill, 1)) * 100, 1),

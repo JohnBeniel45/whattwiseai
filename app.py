@@ -103,6 +103,14 @@ def generate_otp():
     return f"{random.randint(10000, 99999)}"
 
 
+def auth_config():
+    return {
+        "username": os.getenv("WATTWISE_USERNAME", "admin"),
+        "password": os.getenv("WATTWISE_PASSWORD", "wattwise123"),
+        "display_name": os.getenv("WATTWISE_DISPLAY_NAME", "WattWise User"),
+    }
+
+
 def sms_config():
     return {
         "api_key": os.getenv("FAST2SMS_API_KEY", ""),
@@ -898,33 +906,30 @@ def razorpay_config():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error_message = ""
-    mobile = session.get("pending_mobile", "")
-    demo_otp = session.get("pending_otp", "")
     next_url = request.values.get("next") or url_for("index")
 
     if session.get("authenticated"):
         return redirect(next_url)
 
     if request.method == "POST":
-        mobile = normalize_mobile(request.form.get("mobile"))
-        if len(mobile) != 10:
-            error_message = "Enter a valid 10-digit mobile number."
+        username = str(request.form.get("username", "")).strip()
+        password = str(request.form.get("password", ""))
+        credentials = auth_config()
+        if hmac.compare_digest(username, credentials["username"]) and hmac.compare_digest(password, credentials["password"]):
+            session.clear()
+            session["authenticated"] = True
+            session["username"] = username
+            session["display_name"] = credentials["display_name"]
+            return redirect(next_url)
         else:
-            session["pending_mobile"] = mobile
-            session["pending_otp"] = generate_otp()
-            session["otp_attempts"] = 0
-            sms_sent, sms_status = send_otp_sms(mobile, session["pending_otp"])
-            session["sms_sent"] = sms_sent
-            session["sms_status"] = sms_status
-            return redirect(url_for("verify_otp", next=next_url))
+            error_message = "Invalid user ID or password."
 
     return render_template(
         "login.html",
         title="Login | WattWise AI",
         error_message=error_message,
-        mobile=mobile,
-        demo_otp=demo_otp,
         next_url=next_url,
+        default_username=auth_config()["username"],
     )
 
 
@@ -1098,7 +1103,7 @@ def index():
     return render_template(
         "index.html",
         title="WattWise AI",
-        user_mobile=mask_mobile(session.get("user_mobile", "")),
+        user_mobile=session.get("display_name", "WattWise User"),
         hours=hour_labels,
         usage=usage,
         total_usage=total_usage,

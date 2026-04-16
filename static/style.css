@@ -234,6 +234,29 @@ body {
   justify-content: center;
 }
 
+.login-hint {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: rgba(0, 253, 193, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(0, 253, 193, 0.18);
+}
+
+.login-hint span {
+  color: var(--muted);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+}
+
+.login-hint strong {
+  color: var(--secondary);
+  font-size: 0.9rem;
+}
+
 .auth-meta {
   display: flex;
   flex-wrap: wrap;

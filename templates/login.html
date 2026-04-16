@@ -23,50 +23,31 @@
         <span class="brand-text">WattWise AI</span>
       </div>
 
-      {% if verify_mode %}
-      <div class="eyebrow">Secure OTP Login</div>
-      <h1 class="auth-title">Verify your mobile</h1>
-      <p class="auth-copy">Enter the 5-digit OTP for {{ masked_mobile }} to unlock your smart energy assistant.</p>
-      {% else %}
-      <div class="eyebrow">Mobile Login</div>
-      <h1 class="auth-title">Your energy pet is waiting.</h1>
-      <p class="auth-copy">Sign in with your mobile number to view bills, AI forecasts, appliance health, and rewards.</p>
-      {% endif %}
+      <div class="eyebrow">Secure Login</div>
+      <h1 class="auth-title">Welcome back, energy guardian.</h1>
+      <p class="auth-copy">Sign in with your user ID and password to view AI forecasts, appliance health, payments, and your energy pet.</p>
 
       {% if error_message %}
       <div class="auth-error">{{ error_message }}</div>
       {% endif %}
 
-      {% if verify_mode and demo_otp %}
-      <div class="sms-status {% if sms_sent %}is-sent{% endif %}">
-        {{ sms_status }}
-      </div>
-      {% if not sms_sent %}
-      <div class="otp-demo">
-        <span>Demo OTP</span>
-        <strong>{{ demo_otp }}</strong>
-      </div>
-      {% endif %}
-      {% endif %}
-
-      {% if verify_mode %}
-      <form method="post" action="{{ url_for('verify_otp', next=next_url) }}" class="auth-form">
-        <label class="field-label">
-          Enter OTP
-          <input class="field-input otp-input" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="5" placeholder="5-digit OTP" required />
-        </label>
-        <button type="submit" class="primary-action action-wide">Verify & Continue</button>
-      </form>
-      <a class="ghost-link auth-link" href="{{ url_for('login', next=next_url) }}">Use another mobile number</a>
-      {% else %}
       <form method="post" action="{{ url_for('login', next=next_url) }}" class="auth-form">
         <label class="field-label">
-          Mobile Number
-          <input class="field-input" name="mobile" inputmode="tel" autocomplete="tel" maxlength="13" value="{{ mobile }}" placeholder="9876543210" required />
+          User ID
+          <input class="field-input" name="username" autocomplete="username" value="{{ default_username }}" placeholder="admin" required />
         </label>
-        <button type="submit" class="primary-action action-wide">Send OTP</button>
+        <label class="field-label">
+          Password
+          <input class="field-input" name="password" type="password" autocomplete="current-password" placeholder="Enter password" required />
+        </label>
+        <button type="submit" class="primary-action action-wide">Login & Continue</button>
       </form>
-      {% endif %}
+
+      <div class="login-hint">
+        <span>Demo login</span>
+        <strong>User ID: admin</strong>
+        <strong>Password: wattwise123</strong>
+      </div>
 
       <div class="auth-meta">
         <span class="meta-chip live-chip"><span class="live-dot"></span>Secure Session</span>

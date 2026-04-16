@@ -46,7 +46,7 @@
         </div>
         <div class="hero-meta">
           <span class="meta-chip live-chip"><span class="live-dot"></span>Live Monitoring</span>
-          <span class="meta-chip">PWA Ready</span>
+          <span class="meta-chip">{% if gemini_ready %}Gemini AI Active{% else %}Fallback AI{% endif %}</span>
           <a class="meta-chip ghost-chip" href="{{ url_for('download_dataset') }}">Download Dataset</a>
         </div>
       </section>
@@ -61,6 +61,7 @@
           <div class="kpi-note">Tomorrow forecast {{ predictions.tomorrow_usage }} kWh</div>
         </div>
         <p class="kpi-sub">Your usage is {% if usage_change.direction == "decreased" %}below{% else %}above{% endif %} your recent pattern and the pet reacts in real time.</p>
+        <p class="kpi-sub">{{ usage_story }}</p>
       </section>
 
       <section class="grid-duo">
@@ -95,6 +96,7 @@
             <span>est.</span>
           </div>
           <div class="trend-text">{{ prediction_message }}</div>
+          <div class="trend-text">Forecast engine: {% if gemini_ready %}Gemini AI live{% else %}Local fallback model{% endif %}</div>
           <button class="secondary-action" type="button" id="pay-now-btn" data-amount="{{ due_amount }}" {% if not razorpay_ready %}disabled{% endif %}>
             {% if razorpay_ready %}Pay Due Amount{% else %}Razorpay Setup Needed{% endif %}
           </button>
@@ -202,8 +204,9 @@
               <div class="breakdown-fill {% if appliance.faulty %}faulty{% endif %}" style="width: {{ appliance.share }}%;"></div>
             </div>
             <div class="breakdown-meta">
-              <span>{{ appliance.reason }}</span>
-              <span class="{% if appliance.faulty %}fault-text{% endif %}">{% if appliance.faulty %}Needs attention{% else %}Healthy{% endif %}</span>
+              <span>{{ appliance.likely_issue }}</span>
+              <span class="usage-band usage-{{ appliance.usage_band }}">{{ appliance.usage_band | upper }}</span>
+              <span class="health-pill health-{{ appliance.health_state }}">{{ appliance.health_state | upper }}</span>
             </div>
           </article>
           {% endfor %}
@@ -221,6 +224,7 @@
         <div class="recommendation-list">
           {% for recommendation in recommendations %}
           <article class="recommendation-card">
+            <img class="recommendation-image" src="{{ recommendation.image_url }}" alt="{{ recommendation.image_caption }}" loading="lazy" referrerpolicy="no-referrer" />
             <div class="recommendation-top">
               <div>
                 <h3>{{ recommendation.name }}</h3>
@@ -234,7 +238,7 @@
             </div>
             <p class="recommendation-text">{{ recommendation.review_summary }}</p>
             <p class="recommendation-text">{{ recommendation.why_it_fits }}</p>
-            <p class="recommendation-text">{{ recommendation.insight }}</p>
+            <p class="recommendation-text">{{ recommendation.reason }}</p>
             <a class="ghost-link" href="{{ recommendation.url }}" target="_blank" rel="noreferrer">Open Product</a>
           </article>
           {% endfor %}
@@ -260,7 +264,7 @@
         <article id="plan-section" class="panel plan-card">
           <div class="eyebrow">Actionable Intelligence</div>
           <h2>Plan</h2>
-          <div class="savings-number">Rs. {{ monthly_bill }}</div>
+          <div class="savings-number">Rs. {{ due_amount }}</div>
           <p>AI predicts this as your likely due amount. Pay directly in the app when Razorpay keys are configured.</p>
           <div class="plan-meta">
             <span class="meta-chip">AI confidence {{ (predictions.confidence * 100) | round(0) }}%</span>
@@ -290,6 +294,11 @@
                 <div class="device-sub">{{ appliance.energy_kwh }} kWh · Rs. {{ appliance.cost }}</div>
               </div>
               <span class="status-pill status-{{ 'sick' if appliance.faulty else 'happy' }}">{{ 'FAULT' if appliance.faulty else 'OK' }}</span>
+            </div>
+            <div class="device-ai-line">
+              <span class="usage-band usage-{{ appliance.usage_band }}">{{ appliance.usage_band | upper }}</span>
+              <span class="health-pill health-{{ appliance.health_state }}">{{ appliance.health_state | upper }}</span>
+              <span class="device-ai-copy">{{ appliance.advice }}</span>
             </div>
             <div class="device-grid">
               <label>
@@ -361,9 +370,9 @@
           {% endfor %}
           {% for recommendation in recommendations %}
           <div class="alert-card tip">
-            <strong>{{ recommendation.message }}</strong>
+            <strong>{{ recommendation.name }}</strong>
             <span>{{ recommendation.reason }}</span>
-            <a class="ghost-link" href="{{ recommendation.link }}" target="_blank" rel="noreferrer">Open shopping suggestion</a>
+            <a class="ghost-link" href="{{ recommendation.url }}" target="_blank" rel="noreferrer">Open shopping suggestion</a>
           </div>
           {% endfor %}
         </div>

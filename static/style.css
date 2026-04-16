@@ -679,10 +679,42 @@ body {
   margin-top: 12px;
   font-size: 0.72rem;
   line-height: 1.5;
+  flex-wrap: wrap;
 }
 
 .fault-text {
   color: var(--danger);
+}
+
+.usage-band,
+.health-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.usage-low,
+.health-healthy {
+  background: rgba(0, 108, 81, 0.24);
+  color: #9ff6d8;
+}
+
+.usage-normal,
+.health-watch {
+  background: rgba(132, 173, 255, 0.16);
+  color: #d5e5ff;
+}
+
+.usage-high,
+.health-faulty {
+  background: rgba(159, 5, 25, 0.22);
+  color: #ffc0bc;
 }
 
 .observation-card {
@@ -734,6 +766,20 @@ body {
   box-shadow: inset 0 0 0 1px rgba(255, 113, 108, 0.18);
 }
 
+.device-ai-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.device-ai-copy {
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
 .device-grid {
   display: grid;
   gap: 12px;
@@ -766,6 +812,16 @@ body {
   padding: 16px 14px;
   border-radius: 22px;
   background: rgba(11, 14, 20, 0.56);
+}
+
+.recommendation-image {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+  border-radius: 18px;
+  margin-bottom: 14px;
+  background: rgba(255,255,255,0.04);
 }
 
 .recommendation-top,

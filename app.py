@@ -7,7 +7,7 @@ import hmac
 import json
 import math
 import os
-from urllib import error, request as urllib_request
+from urllib import error, parse as urllib_parse, request as urllib_request
 
 app = Flask(__name__)
 
@@ -35,6 +35,7 @@ PRODUCT_CATALOG = [
         "review_summary": "Customers consistently praise quick heating, easy glide, and durable steam output.",
         "why_it_fits": "Good upgrade when AI detects overheating or long heating cycles in your current iron.",
         "url": "https://www.amazon.in/Philips-GC1905-Steam-Iron-Blue/dp/B00TO7K5JC",
+        "image_url": "https://m.media-amazon.com/images/I/61x4kR0Q7SL._SL1500_.jpg",
     },
     {
         "id": "ac-voltas-185v-vectra",
@@ -46,6 +47,7 @@ PRODUCT_CATALOG = [
         "review_summary": "Strong reviews mention efficient cooling, inverter savings, and stable performance in Indian summers.",
         "why_it_fits": "A high-efficiency replacement when AI sees heavy AC-driven bills and cooling inefficiency.",
         "url": "https://www.amazon.in/Voltas-Adjustable-Inverter-Copper-VECTRA/dp/B0D17TV7FN",
+        "image_url": "https://m.media-amazon.com/images/I/61Wfg2f8d8L._SL1500_.jpg",
     },
 ]
 
@@ -209,6 +211,73 @@ def ai_bill_forecast(total_usage, weekly_history, appliance_rows):
     }
 
 
+def gemini_config():
+    return {
+        "api_key": os.getenv("GEMINI_API_KEY", ""),
+        "model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+    }
+
+
+def extract_gemini_text(payload):
+    candidates = payload.get("candidates", [])
+    if not candidates:
+        return ""
+    parts = candidates[0].get("content", {}).get("parts", [])
+    text_segments = [part.get("text", "") for part in parts if part.get("text")]
+    return "".join(text_segments).strip()
+
+
+def gemini_generate_json(task_prompt, fallback):
+    config = gemini_config()
+    if not config["api_key"]:
+        return fallback
+
+    endpoint = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{config['model']}:generateContent?key={urllib_parse.quote(config['api_key'])}"
+    )
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": (
+                            "You are WattWise AI. Return only valid JSON without markdown fences. "
+                            "Keep recommendations practical, concise, and grounded in the provided energy data.\n\n"
+                            f"{task_prompt}"
+                        )
+                    }
+                ],
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.35,
+            "responseMimeType": "application/json",
+        },
+    }
+    http_request = urllib_request.Request(
+        endpoint,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib_request.urlopen(http_request, timeout=18) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except (error.URLError, TimeoutError, json.JSONDecodeError, ValueError):
+        return fallback
+
+    text = extract_gemini_text(body)
+    if not text:
+        return fallback
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return fallback
+    return parsed if isinstance(parsed, dict) else fallback
+
+
 def build_ai_training_rows():
     rows = []
     for row in DATASET_ROWS:
@@ -356,6 +425,102 @@ def recommend_products(appliance_rows, monthly_bill):
         if len(unique) == 2:
             break
     return unique
+
+
+def ai_forecast_and_product_brain(total_usage, monthly_bill, predictions, weekly_history, appliance_rows, recommendations):
+    fallback = {
+        "next_bill": predictions["next_bill"],
+        "confidence": predictions["confidence"],
+        "prediction_message": f"AI forecasts your bill may reach Rs. {predictions['next_bill']:,.0f}",
+        "usage_story": f"AI sees tomorrow usage near {predictions['tomorrow_usage']} kWh based on your weekly trend and appliance pressure.",
+        "pet_message": None,
+        "appliances": [],
+        "recommendations": [],
+    }
+    appliance_snapshot = [
+        {
+            "name": row["name"],
+            "energy_kwh": row["energy_kwh"],
+            "cost": row["cost"],
+            "share": row["share"],
+            "ai_fault_score": row["ai_fault_score"],
+            "condition": row["condition"],
+            "age": row["age"],
+            "maintenance": row["maintenance"],
+        }
+        for row in appliance_rows
+    ]
+    catalog_snapshot = [
+        {
+            "id": item["id"],
+            "category": item["category"],
+            "name": item["name"],
+            "rating": item["rating"],
+            "review_count": item["review_count"],
+            "price": item["price"],
+        }
+        for item in PRODUCT_CATALOG
+    ]
+    task_prompt = (
+        "Return JSON with keys next_bill, confidence, prediction_message, usage_story, pet_message, appliances, recommendations. "
+        "The appliances array must contain objects with keys name, usage_band, health_state, likely_issue, advice. "
+        "The recommendations array must contain objects with keys id, reason, image_caption. "
+        "Use health_state values from healthy, watch, faulty. Use usage_band values from low, normal, high. "
+        "Keep prediction_message and usage_story under 22 words each. Keep advice under 18 words.\n\n"
+        f"Total usage kWh: {total_usage}\n"
+        f"Current monthly bill estimate Rs: {monthly_bill}\n"
+        f"Local next bill forecast Rs: {predictions['next_bill']}\n"
+        f"Local tomorrow usage forecast kWh: {predictions['tomorrow_usage']}\n"
+        f"Local confidence: {predictions['confidence']}\n"
+        f"Weekly history: {json.dumps(weekly_history)}\n"
+        f"Appliances: {json.dumps(appliance_snapshot)}\n"
+        f"Candidate products: {json.dumps(catalog_snapshot)}\n"
+        f"Pre-ranked replacements: {json.dumps([item['id'] for item in recommendations])}"
+    )
+    result = gemini_generate_json(task_prompt, fallback)
+    return {
+        "next_bill": round(parse_float(result.get("next_bill"), predictions["next_bill"], minimum=1), 2),
+        "confidence": round(parse_float(result.get("confidence"), predictions["confidence"], minimum=0, maximum=1), 2),
+        "prediction_message": result.get("prediction_message") or fallback["prediction_message"],
+        "usage_story": result.get("usage_story") or fallback["usage_story"],
+        "pet_message": result.get("pet_message"),
+        "appliances": result.get("appliances") if isinstance(result.get("appliances"), list) else [],
+        "recommendations": result.get("recommendations") if isinstance(result.get("recommendations"), list) else [],
+    }
+
+
+def merge_ai_appliance_labels(appliance_rows, ai_output):
+    ai_by_name = {
+        item.get("name"): item
+        for item in ai_output
+        if isinstance(item, dict) and item.get("name")
+    }
+    for row in appliance_rows:
+        model_row = ai_by_name.get(row["name"], {})
+        row["usage_band"] = model_row.get("usage_band", "high" if row["share"] >= 18 else "normal" if row["share"] >= 8 else "low")
+        row["health_state"] = model_row.get("health_state", "faulty" if row["faulty"] else "watch" if row["ai_fault_score"] >= 0.42 else "healthy")
+        row["likely_issue"] = model_row.get("likely_issue", row["reason"])
+        row["advice"] = model_row.get("advice", "Inspect and reduce usage." if row["faulty"] else "Continue monitoring.")
+    return appliance_rows
+
+
+def merge_ai_recommendations(recommendations, ai_output):
+    ai_by_id = {
+        item.get("id"): item
+        for item in ai_output
+        if isinstance(item, dict) and item.get("id")
+    }
+    merged = []
+    for item in recommendations:
+        model_item = ai_by_id.get(item["id"], {})
+        merged.append(
+            {
+                **item,
+                "reason": model_item.get("reason", item["insight"]),
+                "image_caption": model_item.get("image_caption", f"{item['category']} replacement recommended by WattWise AI."),
+            }
+        )
+    return merged
 
 
 def appliance_analysis(appliances, total_usage, monthly_bill):
@@ -554,15 +719,30 @@ def index():
     appliance_rows, appliance_alerts, product_recommendations, faulty_rows, usage_reasons = appliance_analysis(appliances, total_usage, monthly_bill)
     predictions = ai_bill_forecast(total_usage, weekly_history, appliance_rows)
     pet_status, pet_message, pet_meter, pet_alert = ai_pet_response(monthly_bill, total_usage, predictions)
+    gemini_brain = ai_forecast_and_product_brain(
+        total_usage,
+        monthly_bill,
+        predictions,
+        weekly_history,
+        appliance_rows,
+        product_recommendations,
+    )
+    predictions["next_bill"] = gemini_brain["next_bill"]
+    predictions["confidence"] = gemini_brain["confidence"]
+    product_recommendations = merge_ai_recommendations(product_recommendations, gemini_brain["recommendations"])
+    appliance_rows = merge_ai_appliance_labels(appliance_rows, gemini_brain["appliances"])
     usage_change = explain_usage_change(total_usage, predictions, appliance_rows)
     personalized_tips = build_personalized_tips(appliance_rows, peak_window, saving_mode, predictions)
     alerts = build_alerts(total_usage, peak_usage, average_usage, appliance_alerts, pet_status, monthly_bill)
     streak, pet_badge = build_pet_rewards(score, weekly_history)
     dataset_summary = get_dataset_summary()
     razorpay_ready = bool(razorpay_config()["key_id"] and razorpay_config()["key_secret"])
+    gemini_ready = bool(gemini_config()["api_key"])
 
     suggestion = "WattWise AI acts like a smart energy pet. Keep checking in so it can warn you early, coach better habits, and reduce your bill."
-    prediction_message = f"AI forecasts your bill may reach Rs. {predictions['next_bill']:,.0f}"
+    prediction_message = gemini_brain["prediction_message"]
+    if gemini_brain["pet_message"]:
+        pet_message = gemini_brain["pet_message"]
     home_story = (
         "We built WattWise AI, a smart energy assistant that not only analyzes usage but also behaves like a virtual pet, "
         "encouraging users to adopt better energy habits through emotional engagement and actionable insights."
@@ -601,6 +781,8 @@ def index():
         pet_badge=pet_badge,
         home_story=home_story,
         usage_reasons=usage_reasons,
+        gemini_ready=gemini_ready,
+        usage_story=gemini_brain["usage_story"],
         dataset_summary=dataset_summary,
         dataset_row=dataset_row,
         available_dates=available_dates,

@@ -24,6 +24,8 @@
       </div>
       <div class="topbar-actions">
         <button id="install-btn" class="icon-btn install-btn" hidden>Install</button>
+        <span class="user-chip">{{ user_mobile }}</span>
+        <a class="icon-btn logout-btn" href="{{ url_for('logout') }}">Logout</a>
         <div class="avatar-dot"></div>
       </div>
     </header>

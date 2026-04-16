@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b0e14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="WattWise AI" />
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <main class="auth-shell">
+    <section class="auth-card panel">
+      <div class="brand auth-brand">
+        <span class="brand-bolt"></span>
+        <span class="brand-text">WattWise AI</span>
+      </div>
+
+      {% if verify_mode %}
+      <div class="eyebrow">Secure OTP Login</div>
+      <h1 class="auth-title">Verify your mobile</h1>
+      <p class="auth-copy">Enter the 6-digit OTP for {{ masked_mobile }} to unlock your smart energy assistant.</p>
+      {% else %}
+      <div class="eyebrow">Mobile Login</div>
+      <h1 class="auth-title">Your energy pet is waiting.</h1>
+      <p class="auth-copy">Sign in with your mobile number to view bills, AI forecasts, appliance health, and rewards.</p>
+      {% endif %}
+
+      {% if error_message %}
+      <div class="auth-error">{{ error_message }}</div>
+      {% endif %}
+
+      {% if verify_mode and demo_otp %}
+      <div class="otp-demo">
+        <span>Demo OTP</span>
+        <strong>{{ demo_otp }}</strong>
+      </div>
+      {% endif %}
+
+      {% if verify_mode %}
+      <form method="post" action="{{ url_for('verify_otp', next=next_url) }}" class="auth-form">
+        <label class="field-label">
+          Enter OTP
+          <input class="field-input otp-input" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit OTP" required />
+        </label>
+        <button type="submit" class="primary-action action-wide">Verify & Continue</button>
+      </form>
+      <a class="ghost-link auth-link" href="{{ url_for('login', next=next_url) }}">Use another mobile number</a>
+      {% else %}
+      <form method="post" action="{{ url_for('login', next=next_url) }}" class="auth-form">
+        <label class="field-label">
+          Mobile Number
+          <input class="field-input" name="mobile" inputmode="tel" autocomplete="tel" maxlength="13" value="{{ mobile }}" placeholder="9876543210" required />
+        </label>
+        <button type="submit" class="primary-action action-wide">Send OTP</button>
+      </form>
+      {% endif %}
+
+      <div class="auth-meta">
+        <span class="meta-chip live-chip"><span class="live-dot"></span>Secure Session</span>
+        <span class="meta-chip">PWA Ready</span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

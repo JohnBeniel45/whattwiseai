@@ -1,15 +1,18 @@
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 from pathlib import Path
 import base64
 import csv
+from functools import wraps
 import hashlib
 import hmac
 import json
 import math
 import os
+import random
 from urllib import error, parse as urllib_parse, request as urllib_request
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "wattwise-ai-dev-secret-change-on-render")
 
 UNIT_COST = 6
 DATASET_PATH = Path("data/wattwise_synthetic_2026.csv")
@@ -71,6 +74,33 @@ def load_dataset():
 
 
 DATASET_ROWS, DATASET_ROWS_BY_DATE = load_dataset()
+
+
+def login_required(view_function):
+    @wraps(view_function)
+    def wrapped_view(*args, **kwargs):
+        if not session.get("authenticated"):
+            return redirect(url_for("login", next=request.path))
+        return view_function(*args, **kwargs)
+
+    return wrapped_view
+
+
+def normalize_mobile(raw_mobile):
+    digits = "".join(char for char in str(raw_mobile or "") if char.isdigit())
+    if len(digits) > 10 and digits.startswith("91"):
+        digits = digits[-10:]
+    return digits
+
+
+def mask_mobile(mobile):
+    if not mobile:
+        return ""
+    return f"+91 ******{mobile[-4:]}"
+
+
+def generate_otp():
+    return f"{random.randint(100000, 999999)}"
 
 
 def parse_float(value, fallback, minimum=0, maximum=None):
@@ -757,6 +787,79 @@ def razorpay_config():
     }
 
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error_message = ""
+    mobile = session.get("pending_mobile", "")
+    demo_otp = session.get("pending_otp", "")
+    next_url = request.values.get("next") or url_for("index")
+
+    if session.get("authenticated"):
+        return redirect(next_url)
+
+    if request.method == "POST":
+        mobile = normalize_mobile(request.form.get("mobile"))
+        if len(mobile) != 10:
+            error_message = "Enter a valid 10-digit mobile number."
+        else:
+            session["pending_mobile"] = mobile
+            session["pending_otp"] = generate_otp()
+            session["otp_attempts"] = 0
+            return redirect(url_for("verify_otp", next=next_url))
+
+    return render_template(
+        "login.html",
+        title="Login | WattWise AI",
+        error_message=error_message,
+        mobile=mobile,
+        demo_otp=demo_otp,
+        next_url=next_url,
+    )
+
+
+@app.route("/verify-otp", methods=["GET", "POST"])
+def verify_otp():
+    error_message = ""
+    next_url = request.values.get("next") or url_for("index")
+    mobile = session.get("pending_mobile", "")
+    demo_otp = session.get("pending_otp", "")
+
+    if not mobile or not demo_otp:
+        return redirect(url_for("login", next=next_url))
+
+    if request.method == "POST":
+        submitted_otp = "".join(char for char in request.form.get("otp", "") if char.isdigit())
+        session["otp_attempts"] = session.get("otp_attempts", 0) + 1
+        if session["otp_attempts"] > 5:
+            session.pop("pending_otp", None)
+            error_message = "Too many attempts. Please request a new OTP."
+        elif submitted_otp == demo_otp:
+            session["authenticated"] = True
+            session["user_mobile"] = mobile
+            session.pop("pending_otp", None)
+            session.pop("otp_attempts", None)
+            return redirect(next_url)
+        else:
+            error_message = "Incorrect OTP. Please try again."
+
+    return render_template(
+        "login.html",
+        title="Verify OTP | WattWise AI",
+        error_message=error_message,
+        mobile=mobile,
+        masked_mobile=mask_mobile(mobile),
+        demo_otp=demo_otp,
+        next_url=next_url,
+        verify_mode=True,
+    )
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
 def create_razorpay_order(amount_rupees):
     config = razorpay_config()
     if not config["key_id"] or not config["key_secret"]:
@@ -789,11 +892,13 @@ def create_razorpay_order(amount_rupees):
 
 
 @app.route("/dataset/download")
+@login_required
 def download_dataset():
     return send_from_directory(DATASET_PATH.parent, DATASET_PATH.name, as_attachment=True)
 
 
 @app.route("/payment/order", methods=["POST"])
+@login_required
 def payment_order():
     amount = request.get_json(silent=True, force=False) or {}
     amount_rupees = parse_float(amount.get("amount"), 0, minimum=1)
@@ -802,6 +907,7 @@ def payment_order():
 
 
 @app.route("/payment/verify", methods=["POST"])
+@login_required
 def payment_verify():
     payload = request.get_json(silent=True, force=False) or {}
     payment_id = payload.get("razorpay_payment_id", "")
@@ -816,6 +922,7 @@ def payment_verify():
 
 
 @app.route("/", methods=["GET", "POST"])
+@login_required
 def index():
     selected_input = request.values.get("selected_date")
     dataset_row, available_dates = get_selected_row(selected_input)
@@ -874,6 +981,7 @@ def index():
     return render_template(
         "index.html",
         title="WattWise AI",
+        user_mobile=mask_mobile(session.get("user_mobile", "")),
         hours=hour_labels,
         usage=usage,
         total_usage=total_usage,

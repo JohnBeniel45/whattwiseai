@@ -38,10 +38,15 @@
       {% endif %}
 
       {% if verify_mode and demo_otp %}
+      <div class="sms-status {% if sms_sent %}is-sent{% endif %}">
+        {{ sms_status }}
+      </div>
+      {% if not sms_sent %}
       <div class="otp-demo">
         <span>Demo OTP</span>
         <strong>{{ demo_otp }}</strong>
       </div>
+      {% endif %}
       {% endif %}
 
       {% if verify_mode %}

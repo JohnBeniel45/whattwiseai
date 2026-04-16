@@ -103,6 +103,46 @@ def generate_otp():
     return f"{random.randint(100000, 999999)}"
 
 
+def sms_config():
+    return {
+        "api_key": os.getenv("FAST2SMS_API_KEY", ""),
+        "enabled": os.getenv("FAST2SMS_ENABLED", "1") == "1",
+    }
+
+
+def send_otp_sms(mobile, otp):
+    config = sms_config()
+    if not config["enabled"] or not config["api_key"]:
+        return False, "Demo OTP mode: Fast2SMS key is not configured."
+
+    params = urllib_parse.urlencode(
+        {
+            "authorization": config["api_key"],
+            "route": "otp",
+            "variables_values": otp,
+            "numbers": mobile,
+            "flash": "0",
+        }
+    )
+    http_request = urllib_request.Request(
+        f"https://www.fast2sms.com/dev/bulkV2?{params}",
+        method="GET",
+        headers={"cache-control": "no-cache"},
+    )
+    try:
+        with urllib_request.urlopen(http_request, timeout=12) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (error.URLError, TimeoutError, json.JSONDecodeError, ValueError):
+        return False, "Fast2SMS request failed. Showing demo OTP fallback."
+
+    if payload.get("return") is True:
+        return True, "OTP sent by SMS."
+    message = payload.get("message") or "Fast2SMS did not accept the OTP request."
+    if isinstance(message, list):
+        message = " ".join(str(item) for item in message)
+    return False, f"{message} Showing demo OTP fallback."
+
+
 def parse_float(value, fallback, minimum=0, maximum=None):
     try:
         parsed = float(value)
@@ -805,6 +845,9 @@ def login():
             session["pending_mobile"] = mobile
             session["pending_otp"] = generate_otp()
             session["otp_attempts"] = 0
+            sms_sent, sms_status = send_otp_sms(mobile, session["pending_otp"])
+            session["sms_sent"] = sms_sent
+            session["sms_status"] = sms_status
             return redirect(url_for("verify_otp", next=next_url))
 
     return render_template(
@@ -823,6 +866,8 @@ def verify_otp():
     next_url = request.values.get("next") or url_for("index")
     mobile = session.get("pending_mobile", "")
     demo_otp = session.get("pending_otp", "")
+    sms_sent = session.get("sms_sent", False)
+    sms_status = session.get("sms_status", "Demo OTP mode is active.")
 
     if not mobile or not demo_otp:
         return redirect(url_for("login", next=next_url))
@@ -838,6 +883,8 @@ def verify_otp():
             session["user_mobile"] = mobile
             session.pop("pending_otp", None)
             session.pop("otp_attempts", None)
+            session.pop("sms_sent", None)
+            session.pop("sms_status", None)
             return redirect(next_url)
         else:
             error_message = "Incorrect OTP. Please try again."
@@ -849,6 +896,8 @@ def verify_otp():
         mobile=mobile,
         masked_mobile=mask_mobile(mobile),
         demo_otp=demo_otp,
+        sms_sent=sms_sent,
+        sms_status=sms_status,
         next_url=next_url,
         verify_mode=True,
     )

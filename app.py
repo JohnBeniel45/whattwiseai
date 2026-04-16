@@ -34,8 +34,8 @@ PRODUCT_CATALOG = [
         "price": 2895,
         "review_summary": "Customers consistently praise quick heating, easy glide, and durable steam output.",
         "why_it_fits": "Good upgrade when AI detects overheating or long heating cycles in your current iron.",
-        "url": "https://www.amazon.in/Philips-GC1905-Steam-Iron-Blue/dp/B00TO7K5JC",
-        "image_url": "https://m.media-amazon.com/images/I/61x4kR0Q7SL._SL1500_.jpg",
+        "url": "https://www.amazon.in/s?k=Philips+GC1905+1440+Watt+Steam+Iron",
+        "image_url": "https://placehold.co/900x560/10131a/84adff?text=Philips+Steam+Iron",
     },
     {
         "id": "ac-voltas-185v-vectra",
@@ -46,8 +46,8 @@ PRODUCT_CATALOG = [
         "price": 38990,
         "review_summary": "Strong reviews mention efficient cooling, inverter savings, and stable performance in Indian summers.",
         "why_it_fits": "A high-efficiency replacement when AI sees heavy AC-driven bills and cooling inefficiency.",
-        "url": "https://www.amazon.in/Voltas-Adjustable-Inverter-Copper-VECTRA/dp/B0D17TV7FN",
-        "image_url": "https://m.media-amazon.com/images/I/61Wfg2f8d8L._SL1500_.jpg",
+        "url": "https://www.amazon.in/s?k=Voltas+1.5+Ton+5+Star+Inverter+Split+AC",
+        "image_url": "https://placehold.co/900x560/10131a/00fdc1?text=Voltas+Inverter+AC",
     },
 ]
 
@@ -395,7 +395,7 @@ def score_product_fit(appliance_name, product, ai_score, monthly_bill):
     rating_bonus = product["rating"] / 5 * 0.3
     reviews_bonus = min(product["review_count"], 20000) / 20000 * 0.15
     urgency_bonus = min(monthly_bill / 10000, 1) * 0.1 + ai_score * 0.2
-    return round(category_bonus + rating_bonus + reviews_bonus + urgency_bonus, 3)
+    return round(min(0.99, category_bonus + rating_bonus + reviews_bonus + urgency_bonus), 3)
 
 
 def recommend_products(appliance_rows, monthly_bill):

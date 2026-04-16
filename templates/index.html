@@ -224,7 +224,14 @@
         <div class="recommendation-list">
           {% for recommendation in recommendations %}
           <article class="recommendation-card">
-            <img class="recommendation-image" src="{{ recommendation.image_url }}" alt="{{ recommendation.image_caption }}" loading="lazy" referrerpolicy="no-referrer" />
+            <img
+              class="recommendation-image"
+              src="{{ recommendation.image_url }}"
+              alt="{{ recommendation.image_caption }}"
+              loading="lazy"
+              referrerpolicy="no-referrer"
+              onerror="this.onerror=null; this.src='https://placehold.co/900x560/10131a/84adff?text=WattWise+Product';"
+            />
             <div class="recommendation-top">
               <div>
                 <h3>{{ recommendation.name }}</h3>

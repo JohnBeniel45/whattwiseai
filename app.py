@@ -110,10 +110,63 @@ def sms_config():
     }
 
 
-def send_otp_sms(mobile, otp):
+def twilio_config():
+    return {
+        "account_sid": os.getenv("TWILIO_ACCOUNT_SID", ""),
+        "auth_token": os.getenv("TWILIO_AUTH_TOKEN", ""),
+        "phone_number": os.getenv("TWILIO_PHONE_NUMBER", ""),
+        "enabled": os.getenv("TWILIO_ENABLED", "0") == "1",
+    }
+
+
+def send_twilio_otp(mobile, otp):
+    config = twilio_config()
+    if not config["enabled"]:
+        return False, "Twilio is disabled."
+    if not config["account_sid"] or not config["auth_token"] or not config["phone_number"]:
+        return False, "Twilio credentials are not configured."
+
+    target_number = f"+91{mobile}" if not mobile.startswith("+") else mobile
+    endpoint = f"https://api.twilio.com/2010-04-01/Accounts/{config['account_sid']}/Messages.json"
+    form_data = urllib_parse.urlencode(
+        {
+            "From": config["phone_number"],
+            "To": target_number,
+            "Body": f"Your WattWise AI OTP is {otp}. It expires shortly. Do not share it.",
+        }
+    ).encode("utf-8")
+    auth_token = base64.b64encode(f"{config['account_sid']}:{config['auth_token']}".encode("utf-8")).decode("utf-8")
+    http_request = urllib_request.Request(
+        endpoint,
+        data=form_data,
+        headers={
+            "Authorization": f"Basic {auth_token}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        method="POST",
+    )
+    try:
+        with urllib_request.urlopen(http_request, timeout=12) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except error.HTTPError as exc:
+        try:
+            payload = json.loads(exc.read().decode("utf-8"))
+            message = payload.get("message", "Twilio rejected the SMS request.")
+        except (json.JSONDecodeError, ValueError):
+            message = "Twilio rejected the SMS request."
+        return False, f"Twilio failed: {message}"
+    except (error.URLError, TimeoutError, json.JSONDecodeError, ValueError):
+        return False, "Twilio request failed."
+
+    if payload.get("sid"):
+        return True, "OTP sent by Twilio SMS."
+    return False, "Twilio did not return a message SID."
+
+
+def send_fast2sms_otp(mobile, otp):
     config = sms_config()
     if not config["enabled"] or not config["api_key"]:
-        return False, "Demo OTP mode: Fast2SMS key is not configured."
+        return False, "Fast2SMS key is not configured."
 
     params = urllib_parse.urlencode(
         {
@@ -133,14 +186,29 @@ def send_otp_sms(mobile, otp):
         with urllib_request.urlopen(http_request, timeout=12) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except (error.URLError, TimeoutError, json.JSONDecodeError, ValueError):
-        return False, "Fast2SMS request failed. Showing demo OTP fallback."
+        return False, "Fast2SMS request failed."
 
     if payload.get("return") is True:
-        return True, "OTP sent by SMS."
+        return True, "OTP sent by Fast2SMS."
     message = payload.get("message") or "Fast2SMS did not accept the OTP request."
     if isinstance(message, list):
         message = " ".join(str(item) for item in message)
-    return False, f"{message} Showing demo OTP fallback."
+    return False, str(message)
+
+
+def send_otp_sms(mobile, otp):
+    errors = []
+    twilio_sent, twilio_status = send_twilio_otp(mobile, otp)
+    if twilio_sent:
+        return True, twilio_status
+    errors.append(twilio_status)
+
+    fast2sms_sent, fast2sms_status = send_fast2sms_otp(mobile, otp)
+    if fast2sms_sent:
+        return True, fast2sms_status
+    errors.append(fast2sms_status)
+
+    return False, f"SMS delivery unavailable. {' | '.join(errors)} Showing demo OTP fallback."
 
 
 def parse_float(value, fallback, minimum=0, maximum=None):

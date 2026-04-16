@@ -448,14 +448,18 @@ body {
 
 .bill-card h2,
 .observation-card h2,
-.plan-card h2 {
+.plan-card h2,
+.tou-card h2,
+.carbon-card h2 {
   font-family: var(--font-headline);
   font-size: 1.3rem;
 }
 
 .bill-card p,
 .observation-card p,
-.plan-card p {
+.plan-card p,
+.tou-card p,
+.carbon-card p {
   margin-top: 6px;
   font-size: 0.84rem;
   line-height: 1.55;
@@ -739,6 +743,146 @@ body {
 .savings-number {
   margin-top: 14px;
   color: var(--secondary);
+}
+
+.tou-card {
+  padding: 22px 20px;
+  background:
+    radial-gradient(circle at top right, rgba(0, 253, 193, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(28, 32, 40, 0.96), rgba(16, 19, 26, 0.96));
+}
+
+.optimizer-number {
+  margin-top: 16px;
+  color: var(--secondary);
+  font-family: var(--font-headline);
+  font-size: 2.6rem;
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+
+.tou-band-list,
+.carbon-grid,
+.leaderboard-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.tou-band-list {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.tou-band-list div,
+.carbon-grid div,
+.leaderboard-row {
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(11, 14, 20, 0.56);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+.tou-band-list span,
+.carbon-grid span,
+.tou-band-list small,
+.leaderboard-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.62rem;
+  line-height: 1.45;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.tou-band-list strong,
+.carbon-grid strong {
+  display: block;
+  margin: 6px 0 4px;
+  font-family: var(--font-headline);
+  font-size: 1rem;
+}
+
+.carbon-card,
+.leaderboard-card {
+  padding: 22px 20px;
+}
+
+.carbon-card {
+  background:
+    radial-gradient(circle at bottom left, rgba(0, 253, 193, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(28, 32, 40, 0.94), rgba(16, 19, 26, 0.96));
+}
+
+.carbon-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.carbon-bars {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  align-items: end;
+  min-height: 120px;
+  margin-top: 18px;
+}
+
+.carbon-col {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.carbon-track {
+  width: 100%;
+  max-width: 22px;
+  height: 86px;
+  display: flex;
+  align-items: end;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+}
+
+.carbon-fill {
+  width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, var(--secondary), var(--primary));
+  animation: rise 0.8s ease both;
+}
+
+.carbon-col span {
+  color: var(--muted);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.leaderboard-card {
+  background:
+    radial-gradient(circle at top right, rgba(172, 137, 255, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(28, 32, 40, 0.94), rgba(16, 19, 26, 0.96));
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.leaderboard-row.is-you {
+  background: rgba(0, 253, 193, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(0, 253, 193, 0.22);
+}
+
+.leader-rank,
+.leader-score {
+  font-family: var(--font-headline);
+  color: var(--secondary);
+}
+
+.leader-score {
+  font-size: 1.3rem;
 }
 
 .action-wide {
@@ -1034,6 +1178,7 @@ body {
   .pet-card-luminous,
   .breakdown-panel,
   #appliance-section,
+  .leaderboard-card,
   .dataset-card {
     grid-column: 1 / -1;
   }
@@ -1083,6 +1228,11 @@ body {
   }
 
   .dataset-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tou-band-list,
+  .carbon-grid {
     grid-template-columns: 1fr;
   }
 }

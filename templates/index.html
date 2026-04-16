@@ -280,6 +280,69 @@
         </article>
       </section>
 
+      <section class="grid-duo">
+        <article class="panel tou-card">
+          <div class="eyebrow">Time-of-Use Optimizer</div>
+          <h2>Run heavy loads at smarter hours.</h2>
+          <p>{{ tou_optimizer.recommendation }}</p>
+          <div class="optimizer-number">Rs. {{ tou_optimizer.saving_monthly }}</div>
+          <p>Projected monthly saving by shifting flexible usage to {{ tou_optimizer.best_window }}.</p>
+          <div class="tou-band-list">
+            {% for band in tou_optimizer.bands %}
+            <div>
+              <span>{{ band.label }}</span>
+              <strong>Rs. {{ band.rate }}/kWh</strong>
+              <small>{{ band.hours }}</small>
+            </div>
+            {% endfor %}
+          </div>
+        </article>
+
+        <article class="panel carbon-card">
+          <div class="eyebrow">Carbon Impact</div>
+          <h2>{{ carbon_dashboard.today_kg }} kg CO2 today</h2>
+          <p>{{ carbon_dashboard.message }}</p>
+          <div class="carbon-grid">
+            <div><span>Monthly footprint</span><strong>{{ carbon_dashboard.monthly_kg }} kg</strong></div>
+            <div><span>Saved today</span><strong>{{ carbon_dashboard.saved_kg }} kg</strong></div>
+            <div><span>Tree equivalent</span><strong>{{ carbon_dashboard.trees_equivalent }}</strong></div>
+          </div>
+          <div class="carbon-bars">
+            {% for item in carbon_dashboard.weekly_kg %}
+            <div class="carbon-col">
+              <div class="carbon-track">
+                <div class="carbon-fill" style="height: {{ ((item.kg / 28) * 100) | round(1) }}%;"></div>
+              </div>
+              <span>{{ item.label }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </article>
+      </section>
+
+      <section class="panel leaderboard-card">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Community Efficiency</div>
+            <h2>Neighborhood Leaderboard</h2>
+            <p>{{ leaderboard.message }}</p>
+          </div>
+          <span class="status-pill status-happy">Rank #{{ leaderboard.your_rank }}</span>
+        </div>
+        <div class="leaderboard-list">
+          {% for row in leaderboard.rows %}
+          <div class="leaderboard-row {% if row.name == 'You' %}is-you{% endif %}">
+            <span class="leader-rank">#{{ row.rank }}</span>
+            <div>
+              <strong>{{ row.name }}</strong>
+              <small>{{ row.badge }} · {{ row.streak }} day streak</small>
+            </div>
+            <div class="leader-score">{{ row.score }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
       <section class="panel" id="appliance-section">
         <div class="section-head">
           <div>

@@ -15,6 +15,13 @@ UNIT_COST = 6
 DATASET_PATH = Path("data/wattwise_synthetic_2026.csv")
 OVERALL_LIMIT = 24
 APPLIANCE_LIMITS = {"AC": 9.0, "Fan": 1.6, "Iron": 2.2, "TV": 1.1}
+TOU_RATES = {
+    "off_peak": {"label": "Off-peak", "rate": 4.25, "hours": list(range(0, 6)) + list(range(22, 24))},
+    "standard": {"label": "Standard", "rate": 6.0, "hours": list(range(6, 18))},
+    "peak": {"label": "Peak", "rate": 8.5, "hours": list(range(18, 22))},
+}
+CARBON_FACTOR_KG_PER_KWH = 0.82
+TREE_ABSORPTION_KG_PER_MONTH = 21.0
 DEFAULT_APPLIANCES = {
     "AC": {"power": 1500, "hours": 6, "age": 4, "condition": "good", "maintenance": "yes"},
     "Fan": {"power": 75, "hours": 10, "age": 3, "condition": "good", "maintenance": "yes"},
@@ -585,6 +592,117 @@ def build_scores(total_usage, weekly_history):
     return score, eco_score
 
 
+def get_tou_band(hour):
+    for key, band in TOU_RATES.items():
+        if hour in band["hours"]:
+            return key, band
+    return "standard", TOU_RATES["standard"]
+
+
+def build_tou_optimizer(usage, appliance_rows):
+    tou_cost = 0.0
+    flat_cost = 0.0
+    peak_cost = 0.0
+    off_peak_rate = TOU_RATES["off_peak"]["rate"]
+    peak_hours = []
+
+    for hour, value in enumerate(usage):
+        band_key, band = get_tou_band(hour)
+        cost = value * band["rate"]
+        tou_cost += cost
+        flat_cost += value * UNIT_COST
+        if band_key == "peak":
+            peak_cost += cost
+            peak_hours.append(value)
+
+    heavy = max(appliance_rows, key=lambda row: row["energy_kwh"])
+    shiftable_units = min(heavy["energy_kwh"] * 0.45, sum(peak_hours) * 0.45 if peak_hours else heavy["energy_kwh"] * 0.25)
+    current_peak_rate = TOU_RATES["peak"]["rate"]
+    saving = max(0, shiftable_units * (current_peak_rate - off_peak_rate))
+    best_window = "10 PM - 6 AM"
+    recommendation = (
+        f"Run {heavy['name']} closer to {best_window}. "
+        f"Moving {shiftable_units:.1f} kWh from peak hours can save about Rs. {saving:.0f}/day."
+    )
+
+    return {
+        "tou_cost": round(tou_cost, 2),
+        "flat_cost": round(flat_cost, 2),
+        "peak_cost": round(peak_cost, 2),
+        "saving_daily": round(saving, 2),
+        "saving_monthly": round(saving * 30, 2),
+        "best_window": best_window,
+        "heavy_appliance": heavy["name"],
+        "recommendation": recommendation,
+        "bands": [
+            {"label": "Off-peak", "hours": "10 PM - 6 AM", "rate": TOU_RATES["off_peak"]["rate"]},
+            {"label": "Standard", "hours": "6 AM - 6 PM", "rate": TOU_RATES["standard"]["rate"]},
+            {"label": "Peak", "hours": "6 PM - 10 PM", "rate": TOU_RATES["peak"]["rate"]},
+        ],
+    }
+
+
+def build_carbon_dashboard(total_usage, predictions, weekly_history):
+    today_kg = round(total_usage * CARBON_FACTOR_KG_PER_KWH, 2)
+    monthly_kg = round(today_kg * 30, 2)
+    predicted_kg = round(predictions["tomorrow_usage"] * CARBON_FACTOR_KG_PER_KWH * 30, 2)
+    baseline = predictions["weekly_average"] if predictions.get("weekly_average") else total_usage
+    saved_today = max(0, baseline - total_usage)
+    saved_kg = round(saved_today * CARBON_FACTOR_KG_PER_KWH, 2)
+    trees_equivalent = round(monthly_kg / TREE_ABSORPTION_KG_PER_MONTH, 1)
+    carbon_score = max(0, min(100, int(round(100 - (today_kg - 12) * 4))))
+    weekly_kg = [
+        {"label": day["label"], "kg": round(day["usage"] * CARBON_FACTOR_KG_PER_KWH, 2)}
+        for day in weekly_history
+    ]
+    return {
+        "today_kg": today_kg,
+        "monthly_kg": monthly_kg,
+        "predicted_kg": predicted_kg,
+        "saved_kg": saved_kg,
+        "trees_equivalent": trees_equivalent,
+        "score": carbon_score,
+        "weekly_kg": weekly_kg,
+        "message": f"Today produced about {today_kg} kg CO2. Cutting 2 kWh saves roughly {round(2 * CARBON_FACTOR_KG_PER_KWH, 1)} kg CO2.",
+    }
+
+
+def build_community_leaderboard(score, streak, total_usage, selected_date):
+    seed = sum(ord(char) for char in selected_date or "wattwise")
+    names = ["You", "Eco Nivas", "GreenNest", "VoltVilla", "SmartHome 42", "Solar Street"]
+    community = []
+    for index, name in enumerate(names):
+        if name == "You":
+            entry_score = score
+            entry_streak = streak
+            entry_usage = total_usage
+        else:
+            variance = ((seed + index * 17) % 19) - 9
+            entry_score = max(45, min(98, score + variance + (3 if index % 2 == 0 else -2)))
+            entry_streak = max(1, min(14, streak + ((seed + index * 5) % 7) - 3))
+            entry_usage = round(max(8, total_usage + (((seed + index * 11) % 13) - 6) * 0.8), 2)
+        community.append(
+            {
+                "name": name,
+                "score": entry_score,
+                "streak": entry_streak,
+                "usage": entry_usage,
+                "badge": "Top Saver" if entry_score >= 86 else "Efficient" if entry_score >= 72 else "Improving",
+            }
+        )
+    ranked = sorted(community, key=lambda item: (item["score"], item["streak"]), reverse=True)
+    for position, item in enumerate(ranked, start=1):
+        item["rank"] = position
+    your_rank = next(item["rank"] for item in ranked if item["name"] == "You")
+    percentile = round((len(ranked) - your_rank + 1) / len(ranked) * 100)
+    return {
+        "rows": ranked,
+        "your_rank": your_rank,
+        "percentile": percentile,
+        "message": f"You rank #{your_rank} among similar homes and beat {percentile}% of the community sample.",
+    }
+
+
 def build_personalized_tips(rows, peak_window, saving_mode, predictions):
     tips = [f"AI sees the highest load during {peak_window}. Shift flexible usage to cheaper hours."]
     heavy = sorted(rows, key=lambda row: row["energy_kwh"], reverse=True)
@@ -733,10 +851,13 @@ def index():
     predictions["confidence"] = gemini_brain["confidence"]
     product_recommendations = merge_ai_recommendations(product_recommendations, gemini_brain["recommendations"])
     appliance_rows = merge_ai_appliance_labels(appliance_rows, gemini_brain["appliances"])
+    tou_optimizer = build_tou_optimizer(usage, appliance_rows)
+    carbon_dashboard = build_carbon_dashboard(total_usage, predictions, weekly_history)
     usage_change = explain_usage_change(total_usage, predictions, appliance_rows)
     personalized_tips = build_personalized_tips(appliance_rows, peak_window, saving_mode, predictions)
     alerts = build_alerts(total_usage, peak_usage, average_usage, appliance_alerts, pet_status, monthly_bill)
     streak, pet_badge = build_pet_rewards(score, weekly_history)
+    leaderboard = build_community_leaderboard(score, streak, total_usage, dataset_row["date"] if dataset_row else "")
     dataset_summary = get_dataset_summary()
     razorpay_ready = bool(razorpay_config()["key_id"] and razorpay_config()["key_secret"])
     gemini_ready = bool(gemini_config()["api_key"])
@@ -785,6 +906,9 @@ def index():
         usage_reasons=usage_reasons,
         gemini_ready=gemini_ready,
         usage_story=gemini_brain["usage_story"],
+        tou_optimizer=tou_optimizer,
+        carbon_dashboard=carbon_dashboard,
+        leaderboard=leaderboard,
         dataset_summary=dataset_summary,
         dataset_row=dataset_row,
         available_dates=available_dates,

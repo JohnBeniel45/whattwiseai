@@ -215,6 +215,8 @@ body {
   padding: 0 14px;
   background: rgba(255,255,255,0.06);
   color: var(--text);
+  border: 0;
+  cursor: pointer;
 }
 
 .meta-chip,
@@ -743,6 +745,71 @@ body {
   color: var(--primary);
   font-size: 0.82rem;
   justify-content: flex-start;
+}
+
+.secondary-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.recommendation-panel {
+  padding: 22px 20px;
+}
+
+.recommendation-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.recommendation-card {
+  padding: 16px 14px;
+  border-radius: 22px;
+  background: rgba(11, 14, 20, 0.56);
+}
+
+.recommendation-top,
+.recommendation-meta,
+.plan-meta {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.recommendation-card h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.recommendation-card p {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.recommendation-score {
+  font-family: var(--font-headline);
+  font-size: 1rem;
+  color: var(--secondary);
+}
+
+.recommendation-meta {
+  margin-top: 12px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.recommendation-text {
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.plan-meta {
+  margin-top: 16px;
 }
 
 .weekly-bars {

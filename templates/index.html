@@ -95,7 +95,9 @@
             <span>est.</span>
           </div>
           <div class="trend-text">{{ prediction_message }}</div>
-          <a class="secondary-action" href="#plan-section">Review Savings Plan</a>
+          <button class="secondary-action" type="button" id="pay-now-btn" data-amount="{{ due_amount }}" {% if not razorpay_ready %}disabled{% endif %}>
+            {% if razorpay_ready %}Pay Due Amount{% else %}Razorpay Setup Needed{% endif %}
+          </button>
         </article>
       </section>
 
@@ -208,6 +210,43 @@
         </div>
       </section>
 
+      <section class="panel recommendation-panel">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">AI Recommendations</div>
+            <h2>Best Product Matches</h2>
+            <p>Built-in products ranked by appliance issue, review quality, and bill impact</p>
+          </div>
+        </div>
+        <div class="recommendation-list">
+          {% for recommendation in recommendations %}
+          <article class="recommendation-card">
+            <div class="recommendation-top">
+              <div>
+                <h3>{{ recommendation.name }}</h3>
+                <p>For {{ recommendation.target_appliance }} · Rs. {{ recommendation.price }}</p>
+              </div>
+              <div class="recommendation-score">AI {{ (recommendation.score * 100) | round(0) }}%</div>
+            </div>
+            <div class="recommendation-meta">
+              <span>{{ recommendation.rating }}/5 rating</span>
+              <span>{{ recommendation.review_count }} reviews</span>
+            </div>
+            <p class="recommendation-text">{{ recommendation.review_summary }}</p>
+            <p class="recommendation-text">{{ recommendation.why_it_fits }}</p>
+            <p class="recommendation-text">{{ recommendation.insight }}</p>
+            <a class="ghost-link" href="{{ recommendation.url }}" target="_blank" rel="noreferrer">Open Product</a>
+          </article>
+          {% endfor %}
+          {% if not recommendations %}
+          <article class="recommendation-card">
+            <h3>No urgent replacement needed</h3>
+            <p class="recommendation-text">AI does not see a strong match for an in-app product recommendation on this day.</p>
+          </article>
+          {% endif %}
+        </div>
+      </section>
+
       <section class="grid-duo">
         <article class="panel observation-card">
           <div class="eyebrow">AI Observation</div>
@@ -222,8 +261,11 @@
           <div class="eyebrow">Actionable Intelligence</div>
           <h2>Plan</h2>
           <div class="savings-number">Rs. {{ monthly_bill }}</div>
-          <p>Projected monthly cost before applying the smart plan. Your active recommendations can lower this.</p>
-          <button class="primary-action action-wide">Activate Full Plan</button>
+          <p>AI predicts this as your likely due amount. Pay directly in the app when Razorpay keys are configured.</p>
+          <div class="plan-meta">
+            <span class="meta-chip">AI confidence {{ (predictions.confidence * 100) | round(0) }}%</span>
+            <span class="meta-chip">Pet state {{ pet_status | upper }}</span>
+          </div>
         </article>
       </section>
 
@@ -353,6 +395,8 @@
   </div>
 
   <script>
+    const razorpayKeyId = {{ razorpay_key_id | tojson }};
+
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("{{ url_for('static', filename='service-worker.js') }}");
     }
@@ -393,6 +437,47 @@
     }
 
     notifyEnergyAlerts();
+
+    async function openRazorpayCheckout() {
+      const button = document.getElementById("pay-now-btn");
+      if (!button || !razorpayKeyId) return;
+
+      const response = await fetch("/payment/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: button.dataset.amount })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.enabled) {
+        alert(payload.message || "Unable to start payment.");
+        return;
+      }
+
+      const options = {
+        key: payload.key_id,
+        amount: payload.order.amount,
+        currency: payload.order.currency,
+        name: "WattWise AI",
+        description: "Pay projected electricity due amount",
+        order_id: payload.order.id,
+        handler: async function (paymentResponse) {
+          const verify = await fetch("/payment/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(paymentResponse)
+          });
+          const verifyPayload = await verify.json();
+          alert(verifyPayload.verified ? "Payment verified successfully." : "Payment captured but verification failed.");
+        },
+        theme: { color: "#84adff" }
+      };
+
+      const checkout = new Razorpay(options);
+      checkout.open();
+    }
+
+    document.getElementById("pay-now-btn")?.addEventListener("click", openRazorpayCheckout);
   </script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </body>
 </html>

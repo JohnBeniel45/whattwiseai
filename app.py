@@ -1,6 +1,13 @@
-from flask import Flask, render_template, request, send_from_directory
+from flask import Flask, jsonify, render_template, request, send_from_directory
 from pathlib import Path
+import base64
 import csv
+import hashlib
+import hmac
+import json
+import math
+import os
+from urllib import error, request as urllib_request
 
 app = Flask(__name__)
 
@@ -8,12 +15,6 @@ UNIT_COST = 6
 DATASET_PATH = Path("data/wattwise_synthetic_2026.csv")
 OVERALL_LIMIT = 24
 APPLIANCE_LIMITS = {"AC": 9.0, "Fan": 1.6, "Iron": 2.2, "TV": 1.1}
-SHOPPING_LINKS = {
-    "AC": "https://www.amazon.in/s?k=5+star+inverter+ac",
-    "Fan": "https://www.amazon.in/s?k=energy+efficient+ceiling+fan",
-    "Iron": "https://www.amazon.in/s?k=energy+efficient+iron+box",
-    "TV": "https://www.amazon.in/s?k=energy+efficient+smart+tv",
-}
 DEFAULT_APPLIANCES = {
     "AC": {"power": 1500, "hours": 6, "age": 4, "condition": "good", "maintenance": "yes"},
     "Fan": {"power": 75, "hours": 10, "age": 3, "condition": "good", "maintenance": "yes"},
@@ -21,6 +22,32 @@ DEFAULT_APPLIANCES = {
     "TV": {"power": 100, "hours": 4, "age": 4, "condition": "standby", "maintenance": "yes"},
 }
 EXPECTED_HOURS = {"AC": 8, "Fan": 14, "Iron": 1.5, "TV": 6}
+CONDITION_ENCODING = {"good": 0, "standby": 1, "noise": 2, "slow": 3, "overheat": 4}
+MAINTENANCE_ENCODING = {"yes": 0, "no": 1}
+PRODUCT_CATALOG = [
+    {
+        "id": "iron-philips-gc1905",
+        "category": "Iron",
+        "name": "Philips GC1905 1440-Watt Steam Iron",
+        "rating": 4.3,
+        "review_count": 17940,
+        "price": 2895,
+        "review_summary": "Customers consistently praise quick heating, easy glide, and durable steam output.",
+        "why_it_fits": "Good upgrade when AI detects overheating or long heating cycles in your current iron.",
+        "url": "https://www.amazon.in/Philips-GC1905-Steam-Iron-Blue/dp/B00TO7K5JC",
+    },
+    {
+        "id": "ac-voltas-185v-vectra",
+        "category": "AC",
+        "name": "Voltas 1.5 Ton 5 Star Inverter Split AC",
+        "rating": 4.1,
+        "review_count": 2600,
+        "price": 38990,
+        "review_summary": "Strong reviews mention efficient cooling, inverter savings, and stable performance in Indian summers.",
+        "why_it_fits": "A high-efficiency replacement when AI sees heavy AC-driven bills and cooling inefficiency.",
+        "url": "https://www.amazon.in/Voltas-Adjustable-Inverter-Copper-VECTRA/dp/B0D17TV7FN",
+    },
+]
 
 
 def load_dataset():
@@ -147,27 +174,193 @@ def build_history(selected_date):
     return [{"label": row["day_name"][:3], "usage": round(float(row["total_usage_kwh"]), 2)} for row in rows]
 
 
-def summarize_fault_reason(details, energy_kwh):
-    reasons = []
-    if details["age"] >= 6:
-        reasons.append("older appliance efficiency drop")
+def normalize(value, minimum, maximum):
+    if maximum == minimum:
+        return 0.0
+    return (value - minimum) / (maximum - minimum)
+
+
+def ai_bill_forecast(total_usage, weekly_history, appliance_rows):
+    if not weekly_history:
+        return {
+            "yesterday_usage": total_usage,
+            "weekly_average": total_usage,
+            "tomorrow_usage": total_usage,
+            "monthly_bill": round(total_usage * UNIT_COST * 30, 2),
+            "next_bill": round(total_usage * UNIT_COST * 30, 2),
+            "confidence": 0.5,
+        }
+
+    weighted_week = sum(day["usage"] * weight for day, weight in zip(weekly_history, range(1, len(weekly_history) + 1)))
+    weight_total = sum(range(1, len(weekly_history) + 1))
+    weighted_average = weighted_week / weight_total
+    appliance_pressure = sum(row["energy_kwh"] * (1.2 if row["faulty"] else 1.0) for row in appliance_rows)
+    tomorrow_usage = round((weighted_average * 0.58) + (total_usage * 0.27) + (appliance_pressure * 0.15), 2)
+    weekly_average = round(sum(day["usage"] for day in weekly_history) / len(weekly_history), 2)
+    next_bill = round(((tomorrow_usage * 0.55) + (weekly_average * 0.45)) * UNIT_COST * 30, 2)
+    confidence = max(0.58, min(0.94, 1 - abs(tomorrow_usage - weekly_average) / max(weekly_average, 1)))
+    return {
+        "yesterday_usage": weekly_history[-2]["usage"] if len(weekly_history) >= 2 else total_usage,
+        "weekly_average": weekly_average,
+        "tomorrow_usage": tomorrow_usage,
+        "monthly_bill": round(total_usage * UNIT_COST * 30, 2),
+        "next_bill": next_bill,
+        "confidence": round(confidence, 2),
+    }
+
+
+def build_ai_training_rows():
+    rows = []
+    for row in DATASET_ROWS:
+        rows.append(
+            {
+                "vector": [
+                    float(row["total_usage_kwh"]),
+                    float(row["monthly_predicted_bill_rs"]),
+                    float(row["usage_change_kwh"]),
+                    float(row["weekly_average_kwh"]),
+                ],
+                "label": row["pet_status"],
+            }
+        )
+    return rows
+
+
+AI_TRAINING_ROWS = build_ai_training_rows()
+
+
+def nearest_pet_status(monthly_bill, total_usage, weekly_average, usage_delta):
+    if not AI_TRAINING_ROWS:
+        return "tired"
+    target = [total_usage, monthly_bill, usage_delta, weekly_average]
+    ranked = sorted(
+        AI_TRAINING_ROWS,
+        key=lambda item: math.sqrt(sum((item["vector"][idx] - target[idx]) ** 2 for idx in range(4))),
+    )[:9]
+    votes = {"happy": 0.0, "tired": 0.0, "sick": 0.0}
+    for index, item in enumerate(ranked, start=1):
+        votes[item["label"]] += 1 / index
+    return max(votes, key=votes.get)
+
+
+def ai_pet_response(monthly_bill, total_usage, predictions):
+    predicted_state = nearest_pet_status(
+        monthly_bill,
+        total_usage,
+        predictions["weekly_average"],
+        total_usage - predictions["yesterday_usage"],
+    )
+    if predicted_state == "happy":
+        return "happy", "Bill looks healthy and efficient", 24, "Your pet is relaxed because your projected bill stays comfortably low."
+    if predicted_state == "tired":
+        return "tired", "Bill is rising, trim usage now", 60, "Your pet is uneasy because the bill trend is climbing above your weekly baseline."
+    return "sick", "Bill pressure is too high", 92, "Your pet is stressed because the forecasted bill is too expensive for this usage pattern."
+
+
+def appliance_feature_vector(details, energy_kwh, share):
+    return [
+        normalize(details["power"], 50, 2000),
+        normalize(details["hours"], 0, 24),
+        normalize(details["age"], 0, 15),
+        normalize(energy_kwh, 0, 12),
+        normalize(share, 0, 100),
+        CONDITION_ENCODING.get(details["condition"], 0) / max(len(CONDITION_ENCODING) - 1, 1),
+        MAINTENANCE_ENCODING.get(details["maintenance"], 0),
+    ]
+
+
+def dataset_vectors_for_appliance(category):
+    slug = category.lower()
+    vectors = []
+    for row in DATASET_ROWS:
+        vector = [
+            normalize(float(row[f"{slug}_power_w"]), 50, 2000),
+            normalize(float(row[f"{slug}_hours"]), 0, 24),
+            normalize(float(row[f"{slug}_age_years"]), 0, 15),
+            normalize(float(row[f"{slug}_energy_kwh"]), 0, 12),
+            normalize(float(row[f"{slug}_share_pct"]), 0, 100),
+            CONDITION_ENCODING.get(row[f"{slug}_condition"], 0) / max(len(CONDITION_ENCODING) - 1, 1),
+            MAINTENANCE_ENCODING.get(row[f"{slug}_maintenance"], 0),
+        ]
+        vectors.append((vector, int(row[f"{slug}_faulty"])))
+    return vectors
+
+
+APPLIANCE_AI_ROWS = {name: dataset_vectors_for_appliance(name) for name in DEFAULT_APPLIANCES}
+
+
+def ai_fault_score(category, details, energy_kwh, share):
+    vectors = APPLIANCE_AI_ROWS.get(category, [])
+    if not vectors:
+        return 0.0
+    target = appliance_feature_vector(details, energy_kwh, share)
+    ranked = sorted(
+        vectors,
+        key=lambda item: math.sqrt(sum((item[0][idx] - target[idx]) ** 2 for idx in range(len(target)))),
+    )[:12]
+    weighted_fault = 0.0
+    weighted_total = 0.0
+    for index, (_, label) in enumerate(ranked, start=1):
+        weight = 1 / index
+        weighted_fault += label * weight
+        weighted_total += weight
+    return round(weighted_fault / weighted_total, 2)
+
+
+def summarize_fault_reason(details, ai_score, energy_kwh):
+    if ai_score >= 0.72:
+        return "AI sees a strong fault pattern driven by high energy draw and appliance condition."
     if details["condition"] in {"slow", "overheat"}:
-        reasons.append("heating cycle taking too long")
-    if details["condition"] == "noise":
-        reasons.append("motor strain detected")
-    if details["condition"] == "standby":
-        reasons.append("standby drain likely active")
+        return "AI flags the operating condition as a likely cause of wasted energy."
     if details["maintenance"] == "no":
-        reasons.append("maintenance overdue")
+        return "AI sees maintenance delay correlating with elevated bill pressure."
+    if details["age"] >= 7:
+        return "AI sees age-related efficiency loss in similar historical patterns."
     if energy_kwh > 3:
-        reasons.append("consumption beyond normal operating range")
-    return ", ".join(reasons[:2]) if reasons else "unusual load pattern detected"
+        return "AI detects unusually high consumption for this appliance profile."
+    return "AI sees this appliance operating within a healthy range."
 
 
-def appliance_analysis(appliances, total_usage):
+def score_product_fit(appliance_name, product, ai_score, monthly_bill):
+    category_bonus = 0.45 if product["category"] == appliance_name else 0.0
+    rating_bonus = product["rating"] / 5 * 0.3
+    reviews_bonus = min(product["review_count"], 20000) / 20000 * 0.15
+    urgency_bonus = min(monthly_bill / 10000, 1) * 0.1 + ai_score * 0.2
+    return round(category_bonus + rating_bonus + reviews_bonus + urgency_bonus, 3)
+
+
+def recommend_products(appliance_rows, monthly_bill):
+    candidates = []
+    for row in appliance_rows:
+        if not row["faulty"]:
+            continue
+        for product in PRODUCT_CATALOG:
+            score = score_product_fit(row["name"], product, row["ai_fault_score"], monthly_bill)
+            if product["category"] == row["name"]:
+                candidates.append(
+                    {
+                        **product,
+                        "score": score,
+                        "target_appliance": row["name"],
+                        "insight": f"AI matched this product to your {row['name']} issue based on fault risk and savings potential.",
+                    }
+                )
+    ranked = sorted(candidates, key=lambda item: item["score"], reverse=True)
+    unique = []
+    seen_ids = set()
+    for item in ranked:
+        if item["id"] in seen_ids:
+            continue
+        seen_ids.add(item["id"])
+        unique.append(item)
+        if len(unique) == 2:
+            break
+    return unique
+
+
+def appliance_analysis(appliances, total_usage, monthly_bill):
     rows = []
     alerts = []
-    recommendations = []
     faulty_rows = []
     usage_reasons = []
 
@@ -175,37 +368,19 @@ def appliance_analysis(appliances, total_usage):
         energy_kwh = round((details["power"] * details["hours"]) / 1000, 2)
         cost = round(energy_kwh * UNIT_COST, 2)
         share = round((energy_kwh / total_usage) * 100, 1) if total_usage else 0
-        expected_hours = EXPECTED_HOURS[name]
-        limit = APPLIANCE_LIMITS[name]
-        standby_load = 0.06 if name == "TV" and details["condition"] == "standby" else 0
-        faulty = (
-            energy_kwh + standby_load > limit
-            or details["hours"] > expected_hours * 1.35
-            or details["age"] >= 7
-            or details["condition"] in {"slow", "overheat"}
-            or details["maintenance"] == "no"
-        )
-        reason = summarize_fault_reason(details, energy_kwh)
-        recommendation = None
-        if faulty:
-            recommendation = f"Replace {name.lower()} with a high-efficiency model from your shopping site"
-            alerts.append(f"{name} exceeded safe usage limits and may need inspection")
-            recommendations.append(
-                {
-                    "name": name,
-                    "message": recommendation,
-                    "reason": reason,
-                    "link": SHOPPING_LINKS[name],
-                }
-            )
-            faulty_rows.append(name)
+        ai_score = ai_fault_score(name, details, energy_kwh, share)
+        faulty = ai_score >= 0.56
+        reason = summarize_fault_reason(details, ai_score, energy_kwh)
 
-        if energy_kwh > limit * 0.85:
-            alerts.append(f"{name} is nearing its daily energy limit")
+        if faulty:
+            alerts.append(f"{name} AI risk score is {int(ai_score * 100)} percent and needs inspection")
+            faulty_rows.append(name)
+        elif ai_score >= 0.42:
+            alerts.append(f"{name} shows an early AI anomaly pattern")
+
         if share >= 18:
             usage_reasons.append(f"{name} drove {share}% of today's consumption")
 
-        phantom_load = "TV standby may be wasting power" if name == "TV" and details["condition"] == "standby" else ""
         rows.append(
             {
                 "name": name,
@@ -219,12 +394,14 @@ def appliance_analysis(appliances, total_usage):
                 "share": share,
                 "faulty": faulty,
                 "reason": reason,
-                "limit": limit,
-                "shopping_link": SHOPPING_LINKS[name],
-                "phantom_load": phantom_load,
-                "recommendation": recommendation,
+                "limit": APPLIANCE_LIMITS[name],
+                "shopping_link": next((item["url"] for item in PRODUCT_CATALOG if item["category"] == name), "#"),
+                "phantom_load": "TV standby may be wasting power" if name == "TV" and details["condition"] == "standby" else "",
+                "ai_fault_score": ai_score,
+                "bill_impact": round((cost / max(monthly_bill, 1)) * 100, 1),
             }
         )
+    recommendations = recommend_products(rows, monthly_bill)
     return rows, alerts, recommendations, faulty_rows, usage_reasons
 
 
@@ -241,39 +418,18 @@ def build_scores(total_usage, weekly_history):
     return score, eco_score
 
 
-def get_pet_status(total_usage, faulty_count, score):
-    if total_usage <= 19 and faulty_count == 0 and score >= 80:
-        return "happy", "Great job! Efficient usage", 26, "Your pet feels energetic because the home stayed efficient today."
-    if total_usage <= 26 and faulty_count <= 1:
-        return "tired", "Usage rising, reduce load", 64, "Your pet is tired. A little saving today will help it recover."
-    return "sick", "High usage detected!", 94, "Your pet is suffering because heavy usage or a faulty appliance is stressing the home."
-
-
-def build_predictions(total_usage, weekly_history):
-    yesterday_usage = weekly_history[-2]["usage"] if len(weekly_history) >= 2 else total_usage
-    weekly_average = round(sum(day["usage"] for day in weekly_history) / len(weekly_history), 2) if weekly_history else total_usage
-    tomorrow_usage = round((total_usage * 0.65) + (weekly_average * 0.35), 2)
-    monthly_bill = round(total_usage * UNIT_COST * 30, 2)
-    next_bill = round(((weekly_average + total_usage) / 2) * UNIT_COST * 30, 2)
-    return {
-        "yesterday_usage": yesterday_usage,
-        "weekly_average": weekly_average,
-        "tomorrow_usage": tomorrow_usage,
-        "monthly_bill": monthly_bill,
-        "next_bill": next_bill,
-    }
-
-
-def build_personalized_tips(rows, peak_window, saving_mode):
-    tips = [f"Highest usage is during {peak_window}. Shift ironing or cooling to morning to save cost."]
+def build_personalized_tips(rows, peak_window, saving_mode, predictions):
+    tips = [f"AI sees the highest load during {peak_window}. Shift flexible usage to cheaper hours."]
     heavy = sorted(rows, key=lambda row: row["energy_kwh"], reverse=True)
     top = heavy[0]
-    tips.append(f"You use {top['name']} heavily. Cut 1 hour to quickly lower tomorrow's bill.")
-    phantom = next((row for row in rows if row["phantom_load"]), None)
-    if phantom:
-        tips.append(phantom["phantom_load"])
+    tips.append(f"AI predicts your {top['name']} is the biggest cost lever. Reducing 1 hour can ease the next bill.")
+    risky = next((row for row in rows if row["faulty"]), None)
+    if risky:
+        tips.append(f"AI suggests checking {risky['name']} first because its fault score is {int(risky['ai_fault_score'] * 100)} percent.")
     if saving_mode:
-        tips.append("Saving mode is on. Prioritize fans over AC and switch off standby loads for better scores.")
+        tips.append("Saving mode stays useful, but AI already factors your weekly bill trend into the recommendation.")
+    else:
+        tips.append(f"AI confidence for the next-bill forecast is {int(predictions['confidence'] * 100)} percent.")
     return tips[:4]
 
 
@@ -281,20 +437,20 @@ def explain_usage_change(total_usage, predictions, rows):
     delta = round(total_usage - predictions["yesterday_usage"], 2)
     direction = "increased" if delta > 0 else "decreased"
     main_driver = max(rows, key=lambda row: row["energy_kwh"])
-    reason = f"{main_driver['name']} contributed the most energy today at {main_driver['share']}%."
+    reason = f"AI attributes the strongest bill pressure to {main_driver['name']} at {main_driver['share']}% of load."
     return {"delta": abs(delta), "direction": direction, "reason": reason}
 
 
-def build_alerts(total_usage, peak_usage, average_usage, appliance_alerts, pet_status, saving_mode):
+def build_alerts(total_usage, peak_usage, average_usage, appliance_alerts, pet_status, monthly_bill):
     alerts = []
     if total_usage > OVERALL_LIMIT:
         alerts.append(f"Overall usage limit exceeded: {total_usage} kWh today")
     if peak_usage > average_usage * 1.65:
         alerts.append("Sudden spike detected during the peak demand window")
+    if monthly_bill > 4200:
+        alerts.append(f"Due amount is high: Rs. {monthly_bill}")
     if pet_status == "sick":
-        alerts.append("Your energy pet is suffering and needs attention")
-    if saving_mode:
-        alerts.append("Energy Saving Mode is active with cost-cutting recommendations enabled")
+        alerts.append("Your energy pet is suffering because the bill is too high")
     alerts.extend(appliance_alerts)
     if not alerts:
         alerts.append("System stable: no major anomalies detected")
@@ -308,9 +464,70 @@ def build_pet_rewards(score, weekly_history):
     return streak, badge
 
 
+def razorpay_config():
+    return {
+        "key_id": os.getenv("RAZORPAY_KEY_ID", ""),
+        "key_secret": os.getenv("RAZORPAY_KEY_SECRET", ""),
+        "currency": os.getenv("RAZORPAY_CURRENCY", "INR"),
+    }
+
+
+def create_razorpay_order(amount_rupees):
+    config = razorpay_config()
+    if not config["key_id"] or not config["key_secret"]:
+        return {"enabled": False, "message": "Add Razorpay API keys to enable payments."}
+
+    payload = json.dumps(
+        {
+            "amount": int(round(amount_rupees * 100)),
+            "currency": config["currency"],
+            "receipt": f"wattwise-{int(amount_rupees * 100)}",
+            "notes": {"product": "WattWise AI due payment"},
+        }
+    ).encode("utf-8")
+
+    basic_token = base64.b64encode(f"{config['key_id']}:{config['key_secret']}".encode("utf-8")).decode("utf-8")
+    http_request = urllib_request.Request(
+        "https://api.razorpay.com/v1/orders",
+        data=payload,
+        headers={
+            "Authorization": f"Basic {basic_token}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib_request.urlopen(http_request, timeout=15) as response:
+            return {"enabled": True, "order": json.loads(response.read().decode("utf-8")), "key_id": config["key_id"]}
+    except error.URLError:
+        return {"enabled": False, "message": "Razorpay order creation failed. Check keys or network access."}
+
+
 @app.route("/dataset/download")
 def download_dataset():
     return send_from_directory(DATASET_PATH.parent, DATASET_PATH.name, as_attachment=True)
+
+
+@app.route("/payment/order", methods=["POST"])
+def payment_order():
+    amount = request.get_json(silent=True, force=False) or {}
+    amount_rupees = parse_float(amount.get("amount"), 0, minimum=1)
+    result = create_razorpay_order(amount_rupees)
+    return jsonify(result), (200 if result.get("enabled") else 400)
+
+
+@app.route("/payment/verify", methods=["POST"])
+def payment_verify():
+    payload = request.get_json(silent=True, force=False) or {}
+    payment_id = payload.get("razorpay_payment_id", "")
+    order_id = payload.get("razorpay_order_id", "")
+    signature = payload.get("razorpay_signature", "")
+    secret = razorpay_config()["key_secret"]
+    if not secret:
+        return jsonify({"verified": False, "message": "Razorpay secret not configured."}), 400
+    generated = hmac.new(secret.encode("utf-8"), f"{order_id}|{payment_id}".encode("utf-8"), hashlib.sha256).hexdigest()
+    verified = hmac.compare_digest(generated, signature)
+    return jsonify({"verified": verified})
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -333,18 +550,19 @@ def index():
 
     weekly_history = build_history(dataset_row["date"] if dataset_row else None)
     daily_cost, monthly_bill = calculate_bill(total_usage)
-    appliance_rows, appliance_alerts, recommendations, faulty_rows, usage_reasons = appliance_analysis(appliances, total_usage)
     score, eco_score = build_scores(total_usage, weekly_history)
-    pet_status, pet_message, pet_meter, pet_alert = get_pet_status(total_usage, len(faulty_rows), score)
-    predictions = build_predictions(total_usage, weekly_history)
+    appliance_rows, appliance_alerts, product_recommendations, faulty_rows, usage_reasons = appliance_analysis(appliances, total_usage, monthly_bill)
+    predictions = ai_bill_forecast(total_usage, weekly_history, appliance_rows)
+    pet_status, pet_message, pet_meter, pet_alert = ai_pet_response(monthly_bill, total_usage, predictions)
     usage_change = explain_usage_change(total_usage, predictions, appliance_rows)
-    personalized_tips = build_personalized_tips(appliance_rows, peak_window, saving_mode)
-    alerts = build_alerts(total_usage, peak_usage, average_usage, appliance_alerts, pet_status, saving_mode)
+    personalized_tips = build_personalized_tips(appliance_rows, peak_window, saving_mode, predictions)
+    alerts = build_alerts(total_usage, peak_usage, average_usage, appliance_alerts, pet_status, monthly_bill)
     streak, pet_badge = build_pet_rewards(score, weekly_history)
     dataset_summary = get_dataset_summary()
+    razorpay_ready = bool(razorpay_config()["key_id"] and razorpay_config()["key_secret"])
 
     suggestion = "WattWise AI acts like a smart energy pet. Keep checking in so it can warn you early, coach better habits, and reduce your bill."
-    prediction_message = f"At current usage, your bill may reach Rs. {predictions['next_bill']:,.0f}"
+    prediction_message = f"AI forecasts your bill may reach Rs. {predictions['next_bill']:,.0f}"
     home_story = (
         "We built WattWise AI, a smart energy assistant that not only analyzes usage but also behaves like a virtual pet, "
         "encouraging users to adopt better energy habits through emotional engagement and actionable insights."
@@ -370,7 +588,7 @@ def index():
         unit_cost=UNIT_COST,
         appliance_rows=appliance_rows,
         alerts=alerts,
-        recommendations=recommendations,
+        recommendations=product_recommendations,
         score=score,
         eco_score=eco_score,
         prediction_message=prediction_message,
@@ -387,6 +605,9 @@ def index():
         dataset_row=dataset_row,
         available_dates=available_dates,
         selected_date=dataset_row["date"] if dataset_row else "",
+        due_amount=round(predictions["next_bill"], 2),
+        razorpay_key_id=razorpay_config()["key_id"],
+        razorpay_ready=razorpay_ready,
     )
 
 

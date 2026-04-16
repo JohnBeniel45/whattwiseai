@@ -26,7 +26,7 @@
       {% if verify_mode %}
       <div class="eyebrow">Secure OTP Login</div>
       <h1 class="auth-title">Verify your mobile</h1>
-      <p class="auth-copy">Enter the 6-digit OTP for {{ masked_mobile }} to unlock your smart energy assistant.</p>
+      <p class="auth-copy">Enter the 5-digit OTP for {{ masked_mobile }} to unlock your smart energy assistant.</p>
       {% else %}
       <div class="eyebrow">Mobile Login</div>
       <h1 class="auth-title">Your energy pet is waiting.</h1>
@@ -53,7 +53,7 @@
       <form method="post" action="{{ url_for('verify_otp', next=next_url) }}" class="auth-form">
         <label class="field-label">
           Enter OTP
-          <input class="field-input otp-input" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit OTP" required />
+          <input class="field-input otp-input" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="5" placeholder="5-digit OTP" required />
         </label>
         <button type="submit" class="primary-action action-wide">Verify & Continue</button>
       </form>

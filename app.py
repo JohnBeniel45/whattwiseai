@@ -100,7 +100,7 @@ def mask_mobile(mobile):
 
 
 def generate_otp():
-    return f"{random.randint(100000, 999999)}"
+    return f"{random.randint(10000, 99999)}"
 
 
 def sms_config():
@@ -121,7 +121,7 @@ def send_otp_sms(mobile, otp):
             "route": "otp",
             "variables_values": otp,
             "numbers": mobile,
-            "flash": "0",
+            "flash": "1",
         }
     )
     http_request = urllib_request.Request(

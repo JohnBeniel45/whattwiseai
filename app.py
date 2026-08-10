@@ -1021,6 +1021,11 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/game")
+def game():
+    return render_template("game.html", title="Brick Leap | Three.js Platformer")
+
+
 def create_razorpay_order(amount_rupees):
     config = razorpay_config()
     if not config["key_id"] or not config["key_secret"]:

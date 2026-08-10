@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#69c7ff" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='game.css') }}" />
+</head>
+<body>
+  <main class="game-shell">
+    <header class="game-hud">
+      <a class="back-link" href="{{ url_for('index') }}">← WattWise</a>
+      <div class="brand-lockup"><span class="brand-dot"></span> BRICK LEAP</div>
+      <button id="restart" class="restart-button" type="button">Restart</button>
+    </header>
+
+    <section class="game-stage" aria-label="Brick Leap platform game">
+      <canvas id="game-canvas"></canvas>
+      <div class="game-stats" aria-live="polite">
+        <div><span>Coins</span><strong id="coin-count">0</strong></div>
+        <div><span>Lives</span><strong id="life-count">3</strong></div>
+        <div><span>Level</span><strong>1-1</strong></div>
+      </div>
+      <div id="message" class="game-message is-visible">
+        <span class="message-kicker">Brick Leap</span>
+        <strong>Collect every coin.<br />Reach the flag.</strong>
+        <small>Arrow keys / A D to run · Space to jump</small>
+        <button id="play" type="button">Play level</button>
+      </div>
+    </section>
+
+    <div class="touch-controls" aria-label="Touch controls">
+      <div class="direction-pad">
+        <button id="move-left" aria-label="Move left" type="button">←</button>
+        <button id="move-right" aria-label="Move right" type="button">→</button>
+      </div>
+      <button id="jump" class="jump-button" aria-label="Jump" type="button">JUMP</button>
+    </div>
+
+    <p class="game-note">An original Three.js platformer inspired by classic arcade side-scrollers.</p>
+  </main>
+  <script type="module" src="{{ url_for('static', filename='game.js') }}"></script>
+</body>
+</html>
